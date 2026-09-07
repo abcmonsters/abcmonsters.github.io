@@ -1,6 +1,8 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
+import { pickEnglishVoice } from './speech';
+import { VOCABULARY } from './lesson-data';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Play,
@@ -31,7 +33,6 @@ import {
   WORLDS,
   WIDTH,
   HEIGHT,
-  quizChoices,
   type Mode,
 } from './game-engine';
 
@@ -50,12 +51,17 @@ export default function Home() {
     [mapOpen, setMapOpen] = useState(false),
     [notice, setNotice] = useState(''),
     [quizHint, setQuizHint] = useState(''),
+    [quizRound, setQuizRound] = useState(0),
     [loaded, setLoaded] = useState(false),
-    [assetError, setAssetError] = useState(false);
+    [assetError, setAssetError] = useState(false),
+    [score, setScore] = useState(0),
+    [learned, setLearned] = useState<string[]>([]),
+    [voiceName, setVoiceName] = useState('Đang tìm giọng đọc…');
+  const voiceRef = useRef<SpeechSynthesisVoice | undefined>(undefined);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
-    world = WORLDS[Math.min(4, Math.floor(level / 6))];
+    world = WORLDS[level];
   const say = useCallback((phrase: string) => {
     if (
       mutedRef.current ||
@@ -66,7 +72,13 @@ export default function Home() {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(phrase);
     u.lang = 'en-US';
-    u.rate = 0.8;
+    u.rate = 0.88;
+    const selected =
+      pickEnglishVoice(window.speechSynthesis.getVoices()) || voiceRef.current;
+    if (selected) {
+      u.voice = selected;
+      u.lang = selected.lang;
+    }
     window.speechSynthesis.speak(u);
   }, []);
   const tone = useCallback((hz: number) => {
@@ -100,6 +112,12 @@ export default function Home() {
   }, []);
   const changeMode = useCallback((m: Mode) => {
     game.current.mode = m;
+    if (
+      m !== 'playing' &&
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window
+    )
+      window.speechSynthesis.cancel();
     setMode(m);
     input.current = { left: false, right: false, jump: false };
   }, []);
@@ -109,12 +127,41 @@ export default function Home() {
     setMode('ready');
     setHp(3);
     setStars(0);
+    setScore(0);
+    setLearned([]);
     setNotice('');
     setQuizHint('');
+    setQuizRound(0);
     setMapOpen(false);
     input.current = { left: false, right: false, jump: false };
     if (typeof window !== 'undefined' && 'speechSynthesis' in window)
       window.speechSynthesis.cancel();
+  }, []);
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) {
+      const id = requestAnimationFrame(() =>
+        setVoiceName('Thiết bị chưa hỗ trợ giọng đọc'),
+      );
+      return () => cancelAnimationFrame(id);
+    }
+    const refresh = () => {
+      const voice = pickEnglishVoice(window.speechSynthesis.getVoices());
+      voiceRef.current = voice;
+      setVoiceName(
+        voice
+          ? /google/i.test(voice.name)
+            ? 'Giọng Google · ' + voice.lang
+            : 'Giọng thiết bị · ' + voice.name
+          : 'Giọng mặc định của thiết bị',
+      );
+    };
+    const id = requestAnimationFrame(refresh);
+    window.speechSynthesis.addEventListener('voiceschanged', refresh);
+    return () => {
+      cancelAnimationFrame(id);
+      window.speechSynthesis.removeEventListener('voiceschanged', refresh);
+      window.speechSynthesis.cancel();
+    };
   }, []);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -166,7 +213,14 @@ export default function Home() {
             );
             say(phrase);
             tone(680);
-          } else if (e.type === 'hurt') tone(140);
+          } else if (e.type === 'encounter' || (e.type === 'stomp' && e.noun)) {
+            if (e.noun) {
+              flash(`${e.noun[2]} ${e.noun[0]} · ${e.noun[1]}`);
+              say(e.noun[0]);
+            }
+            if (e.type === 'stomp') tone(560);
+          } else if (e.type === 'jump') tone(310);
+          else if (e.type === 'hurt') tone(140);
           else if (e.type === 'stomp') tone(440);
           else if (e.type === 'quiz')
             say(
@@ -175,6 +229,10 @@ export default function Home() {
         }
         setHp(g.hp);
         setStars(g.stars);
+        setScore(g.score);
+        setLearned((prev) =>
+          prev.length === g.learned.length ? prev : [...g.learned],
+        );
         setMode(g.mode);
       }
       last = now;
@@ -247,13 +305,23 @@ export default function Home() {
     game.current = createGame(level);
     setStars(0);
     setHp(3);
+    setScore(0);
+    setLearned([]);
+    setQuizRound(0);
     setNotice('');
     start();
   }
   function answer(n: number) {
-    if (n !== level) {
-      setQuizHint(`Thử lại nhé! Tìm từ bắt đầu bằng ${letter}.`);
+    if (n !== quizRound) {
+      setQuizHint('Chưa đúng rồi. Nghe gợi ý và thử lại nhé!');
       tone(180);
+      return;
+    }
+    if (quizRound < 2) {
+      setQuizRound(quizRound + 1);
+      setQuizHint('Đúng rồi! Thử từ tiếp theo nhé.');
+      say(VOCABULARY[level][quizRound + 1][0]);
+      tone(700);
       return;
     }
     const next = [...new Set([...completed, level])];
@@ -352,7 +420,7 @@ export default function Home() {
           {alphabet}
           <div className="world-note">
             <span className="world-dot" /> THẾ GIỚI{' '}
-            {String(Math.min(5, Math.floor(level / 6) + 1)).padStart(2, '0')}
+            {String(level + 1).padStart(2, '0')}
             <b>{world.title}</b>
           </div>
         </aside>
@@ -361,9 +429,7 @@ export default function Home() {
             <span>
               <i /> MÀN {String(level + 1).padStart(2, '0')}
             </span>
-            <b>
-              {world.name} chữ {letter}
-            </b>
+            <b>{world.name}</b>
             <span>
               {[0, 1, 2].map((i) => (
                 <span key={i} style={{ opacity: i < stars ? 1 : 0.4 }}>
@@ -423,7 +489,9 @@ export default function Home() {
                 <div className="level-pill">
                   {word[2]} {letter} is for {word[0]}
                 </div>
-                <p>Một chữ cái mới đang chờ bạn!</p>
+                <p>
+                  {world.name} · Độ khó {1 + Math.floor(level / 5)}/6
+                </p>
                 <button
                   className="primary-button"
                   onClick={start}
@@ -444,7 +512,9 @@ export default function Home() {
                     Tải lại game
                   </button>
                 ) : (
-                  <small>Nhặt 3 sao · Vượt trùm · Học chữ {letter}</small>
+                  <small>
+                    {VOCABULARY[level].map((n) => n[0]).join(' · ')}
+                  </small>
                 )}
               </div>
             )}
@@ -479,28 +549,34 @@ export default function Home() {
             )}
             {mode === 'quiz' && (
               <div className="state-screen quiz-screen">
-                <span className="game-kicker">THỬ THÁCH CUỐI CÙNG</span>
+                <span className="game-kicker">
+                  TRÙM {letter} · CÂU {quizRound + 1}/3
+                </span>
                 <span className="quiz-letter">
                   {letter}
                   {letter.toLowerCase()}
                 </span>
-                <h2>{letter} is for…?</h2>
-                <p>Từ nào bắt đầu bằng chữ {letter}?</p>
+                <h2 className="quiz-object">
+                  {VOCABULARY[level][quizRound][2]}
+                </h2>
+                <p>Từ nào có nghĩa là “{VOCABULARY[level][quizRound][1]}”?</p>
                 <button
                   className="listen-button"
-                  onClick={() => say(`${letter} is for ${word[0]}`)}
+                  onClick={() => say(VOCABULARY[level][quizRound][0])}
                 >
                   <Volume2 size={18} />
                   Nghe gợi ý
                 </button>
                 <div className="quiz-choices">
-                  {quizChoices(level).map((n) => (
-                    <button key={n} onClick={() => answer(n)}>
-                      <span>{WORDS[n][2]}</span>
-                      {WORDS[n][0]}
-                      <ChevronRight size={18} />
-                    </button>
-                  ))}
+                  {[0, 1, 2]
+                    .map((i) => (i + level + quizRound + 1) % 3)
+                    .map((n) => (
+                      <button key={n} onClick={() => answer(n)}>
+                        <span>{String.fromCharCode(65 + n)}</span>
+                        {VOCABULARY[level][n][0]}
+                        <ChevronRight size={18} />
+                      </button>
+                    ))}
                 </div>
                 <output className="quiz-hint">
                   {quizHint || 'Chọn một đáp án bên trên nhé.'}
@@ -538,9 +614,16 @@ export default function Home() {
                     Nghe lại
                   </button>
                 </div>
+                <div className="win-words">
+                  {VOCABULARY[level].map((n) => (
+                    <button key={n[0]} onClick={() => say(n[0])}>
+                      {n[2]} {n[0]} <Volume2 size={12} />
+                    </button>
+                  ))}
+                </div>
                 <p>
                   <Check size={16} />
-                  Đã học chữ {letter} · {completed.length}/26 chữ
+                  Đã học chữ {letter} · {score} điểm
                 </p>
                 <button
                   className="primary-button"
@@ -592,7 +675,7 @@ export default function Home() {
                 <ArrowRight />
               </button>
             </div>
-            <span>ĐI KHÁM PHÁ!</span>
+            <span>{score} ĐIỂM</span>
             <button
               className="jump-button"
               aria-label="Nhảy"
@@ -600,6 +683,13 @@ export default function Home() {
             >
               <ArrowUp /> NHẢY
             </button>
+          </div>
+          <div className="mobile-wordbook">
+            {VOCABULARY[level].map((n) => (
+              <button key={n[0]} onClick={() => say(n[0])}>
+                {n[2]} {n[0]} <Volume2 size={12} />
+              </button>
+            ))}
           </div>
           <div className="keyboard-note">
             ← → di chuyển <span>·</span> Space nhảy <span>·</span> Esc tạm dừng
@@ -634,7 +724,7 @@ export default function Home() {
               <p>
                 Chữ hoa, chữ thường
                 <br />
-                và một từ mới.
+                và 3 từ vựng mới.
               </p>
             </div>
           </div>
@@ -645,12 +735,30 @@ export default function Home() {
             <div>
               <b>Gặp trùm chữ {letter}</b>
               <p>
-                Nhảy lên trùm 3 lần,
+                Nhảy lên trùm {3 + Math.floor(level / 10)} lần,
                 <br />
                 chọn đúng từ để qua màn!
               </p>
             </div>
           </div>
+          <div className="vocabulary-list">
+            <div className="eyebrow">ENEMY MÀN {letter}</div>
+            {VOCABULARY[level].map((n) => (
+              <button
+                key={n[0]}
+                onClick={() => say(n[0])}
+                className={learned.includes(n[0]) ? 'word-seen' : ''}
+              >
+                <span>{n[2]}</span>
+                <div>
+                  <b>{n[0]}</b>
+                  <small>{n[1]}</small>
+                </div>
+                <Volume2 size={15} />
+              </button>
+            ))}
+          </div>
+          <p className="voice-label">{voiceName}</p>
           <div className="tip">
             <span>MON MÁCH NHỎ</span>
             <p>

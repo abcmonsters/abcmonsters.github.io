@@ -976,3 +976,182 @@ footer span {
     font-size: 42px;
   }
 }
+.vocabulary-list {
+  margin-top: 24px;
+}
+.vocabulary-list > .eyebrow {
+  font-size: 10px;
+  margin-bottom: 9px;
+}
+.vocabulary-list > button {
+  width: 100%;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  text-align: left;
+  background: #ffffff05;
+  border: 1px solid #ffffff0d;
+  border-radius: 10px;
+  padding: 9px 11px;
+  margin-top: 7px;
+  color: #e0eacb;
+}
+.vocabulary-list > button > span {
+  font-size: 25px;
+}
+.vocabulary-list > button > div {
+  flex: 1;
+}
+.vocabulary-list b {
+  display: block;
+  font-size: 14px;
+}
+.vocabulary-list small {
+  display: block;
+  font-size: 12px;
+  color: #aabc9d;
+  margin-top: 2px;
+}
+.vocabulary-list > button.word-seen {
+  border-color: #a2c56680;
+  background: #658d2d20;
+}
+.voice-label {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #b2c399;
+  margin-top: 12px;
+}
+.lesson .tip {
+  display: none;
+}
+.lesson .mission {
+  margin-top: 20px;
+}
+.letter-card {
+  margin-top: 15px;
+  padding: 18px 23px;
+}
+.letter-card > span {
+  font-size: 65px;
+}
+.letter-card > b {
+  margin-top: 8px;
+}
+.mobile-wordbook {
+  display: none;
+}
+.win-words {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.win-words button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #b7ce91;
+  background: #e1edc4;
+  color: #3f5c34;
+  font-size: 11px;
+  padding: 6px 9px;
+  border-radius: 15px;
+}
+.game-kicker {
+  letter-spacing: 1.5px;
+}
+.start-screen > small {
+  max-width: 100%;
+  line-height: 1.6;
+}
+.controls > span {
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .mobile-wordbook {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .mobile-wordbook button {
+    font-size: 11px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    background: #2a4432;
+    color: #dbe8bb;
+    border: 1px solid #68814e55;
+    border-radius: 13px;
+    padding: 6px 9px;
+  }
+  .game-frame {
+    max-height: calc(100dvh - 214px);
+  }
+}
+@media (max-width: 600px) {
+  .game-layout {
+    padding-top: 12px;
+  }
+  .mobile-wordbook {
+    margin-top: 9px;
+  }
+  .mobile-wordbook button {
+    font-size: 10px;
+    padding: 5px 7px;
+  }
+  .game-frame {
+    min-height: 350px;
+  }
+  .win-words {
+    margin-bottom: 5px;
+  }
+  .won-screen .learned-word {
+    padding-top: 0;
+  }
+  .won-screen .learned-word > span {
+    font-size: 43px;
+  }
+  .won-screen .victory-stars {
+    font-size: 32px;
+  }
+}
+.quiz-screen .quiz-letter {
+  font-size: 40px;
+  margin-top: 8px;
+}
+.quiz-screen h2.quiz-object {
+  font-size: 48px;
+  line-height: 1.1;
+  margin: 7px 0;
+}
+.quiz-screen > p {
+  font-size: 14px;
+  min-height: 22px;
+}
+.quiz-choices button > span {
+  font-family: monospace;
+  font-size: 16px;
+  color: #73904b;
+  border: 1px solid #c2d49b;
+  border-radius: 7px;
+  padding: 4px 7px;
+}
+@media (max-height: 720px) and (max-width: 600px) {
+  .quiz-screen .quiz-letter {
+    font-size: 28px;
+  }
+  .quiz-screen h2.quiz-object {
+    font-size: 32px;
+  }
+  .quiz-screen > p {
+    font-size: 12px;
+    margin: 5px 0;
+  }
+  .quiz-screen {
+    padding: 22px 16px;
+  }
+}
