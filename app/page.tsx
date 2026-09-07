@@ -1,5 +1,5 @@
 'use client';
-import Image from 'next/image';
+import MonPortrait from './mon-portrait';
 import Link from 'next/link';
 import { pickEnglishVoice } from './speech';
 import { VOCABULARY } from './lesson-data';
@@ -236,7 +236,15 @@ export default function Home() {
         setMode(g.mode);
       }
       last = now;
-      drawGame(ctx, g, sprite);
+      drawGame(
+        ctx,
+        g,
+        sprite,
+        now / 1000,
+        'speechSynthesis' in window &&
+          window.speechSynthesis.speaking &&
+          !window.speechSynthesis.paused,
+      );
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -475,13 +483,7 @@ export default function Home() {
                 </h2>
                 <div className="mon-intro">
                   <span className="floating-letter letter-left">{letter}</span>
-                  <Image
-                    unoptimized
-                    width={164}
-                    height={164}
-                    src="/mon-sprite.png"
-                    alt="Mon vàng một mắt với đôi cánh và trái tim"
-                  />
+                  <MonPortrait label="Mon vàng một mắt, chớp mắt và thở nhẹ" />
                   <span className="floating-letter letter-right">
                     {letter.toLowerCase()}
                   </span>
@@ -522,14 +524,7 @@ export default function Home() {
               <div className="state-screen">
                 <span className="game-kicker">NGHỈ MỘT CHÚT NÀO</span>
                 <h2>Mon chờ bạn!</h2>
-                <Image
-                  unoptimized
-                  width={164}
-                  height={164}
-                  className="state-mon"
-                  src="/mon-sprite.png"
-                  alt="Mon"
-                />
+                <MonPortrait className="state-mon" label="Mon" />
                 <button className="primary-button" onClick={start}>
                   <Play size={18} />
                   Chơi tiếp
@@ -644,14 +639,7 @@ export default function Home() {
               <div className="state-screen">
                 <span className="game-kicker">MÌNH THỬ LẠI NHÉ</span>
                 <h2>Suýt được rồi!</h2>
-                <Image
-                  unoptimized
-                  width={164}
-                  height={164}
-                  className="state-mon"
-                  src="/mon-sprite.png"
-                  alt="Mon cổ vũ bạn"
-                />
+                <MonPortrait className="state-mon" label="Mon cổ vũ bạn" />
                 <p>Canh lúc nhảy để vượt qua chướng ngại vật.</p>
                 <button className="primary-button" onClick={replay}>
                   <RotateCcw size={18} />

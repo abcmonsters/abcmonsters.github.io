@@ -1155,3 +1155,29 @@ footer span {
     padding: 22px 16px;
   }
 }
+.mon-portrait {
+  width: 164px;
+  height: 164px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.mon-intro .mon-portrait {
+  filter: drop-shadow(0 9px 0 #365f341a);
+}
+.mon-portrait.state-mon {
+  width: 140px;
+  height: 140px;
+  margin: 10px 0 20px;
+}
+@media (max-width: 600px) {
+  .mon-intro .mon-portrait {
+    height: 100%;
+    width: auto;
+  }
+}
+@media (max-height: 720px) and (max-width: 600px) {
+  .mon-portrait.state-mon {
+    height: 95px;
+    width: 95px;
+  }
+}

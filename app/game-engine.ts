@@ -1,3 +1,4 @@
+import { drawMonSprite, monExpression } from './mon-animation';
 import { VOCABULARY, WORLDS, type Noun } from './lesson-data';
 export { WORDS, WORLDS, VOCABULARY } from './lesson-data';
 export const WIDTH = 432,
@@ -425,6 +426,8 @@ export function drawGame(
   ctx: CanvasRenderingContext2D,
   g: Game,
   sprite: HTMLImageElement | null,
+  animationTime = g.time,
+  speaking = false,
 ) {
   const palette = WORLDS[g.level],
     t = g.time,
@@ -783,12 +786,19 @@ export function drawGame(
   ctx.globalAlpha = p.invincible > 0 && Math.floor(t * 12) % 2 === 0 ? 0.35 : 1;
   if (sprite?.complete && sprite.naturalWidth) {
     const run = Math.abs(p.vx) / 240,
-      breath = Math.sin(t * 3) * 0.018,
+      breath = monExpression(animationTime, {
+        speed: p.vx,
+        grounded: p.grounded,
+        vy: p.vy,
+        hurt: p.invincible,
+        landing: p.landing,
+        stride: p.stride,
+      }).breath,
       bob = p.grounded
         ? Math.abs(Math.sin(p.stride)) * 3 * run
         : Math.sin(t * 8) * 1.2;
-    let sx = 1 + breath,
-      sy = 1 - breath;
+    let sx = 1 - breath,
+      sy = 1 + breath;
     if (!p.grounded) {
       sx = 0.94;
       sy = 1.07;
@@ -803,7 +813,17 @@ export function drawGame(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
     );
     ctx.scale(sx * p.facing, sy);
-    ctx.drawImage(sprite, -36, -65, 72, 72);
+    ctx.translate(-36, -65);
+    ctx.scale(72 / 1254, 72 / 1254);
+    drawMonSprite(ctx, sprite, animationTime, {
+      speed: p.vx,
+      grounded: p.grounded,
+      vy: p.vy,
+      hurt: p.invincible,
+      landing: p.landing,
+      stride: p.stride,
+      speaking,
+    });
     ctx.restore();
   }
   ctx.globalAlpha = 1;
