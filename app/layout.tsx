@@ -13,7 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Mon · Alphabet Adventure', description: 'Cùng Mon nhảy qua 26 thế giới và khám phá bảng chữ cái tiếng Anh.',
+  title: 'Mon · Alphabet Adventure',
+  description:
+    'Cùng Mon nhảy qua 26 thế giới và khám phá bảng chữ cái tiếng Anh.',
 };
 
 export default function RootLayout({
