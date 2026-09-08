@@ -1,3 +1,9 @@
+import {
+  enemyMotion,
+  enemyPace,
+  airborne,
+  type EnemyMotion,
+} from './enemy-traits';
 import { drawNounEnemy } from './noun-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
@@ -30,7 +36,10 @@ export type Enemy = Rect & {
   baseY: number;
   range: number;
   speed: number;
-  behavior: 'walk' | 'hop' | 'float';
+  behavior: EnemyMotion;
+  dropClock: number;
+  dropState: 'ready' | 'fall' | 'rest';
+  vy: number;
   noun: Noun;
   dead: boolean;
   seen: boolean;
@@ -170,7 +179,10 @@ export function createGame(level = 0): Game {
     baseY: 506,
     range: 32 + difficulty * 18,
     speed: 0.95 + difficulty * 0.85,
-    behavior: i % 3 === 0 ? 'walk' : i % 3 === 1 ? 'hop' : 'float',
+    behavior: enemyMotion(VOCABULARY[level][i % 3][0]),
+    dropClock: 1.4 + i * 0.2,
+    dropState: 'ready',
+    vy: 0,
     noun: VOCABULARY[level][i % 3],
     dead: false,
     seen: false,
@@ -233,6 +245,7 @@ export function createGame(level = 0): Game {
       })),
     );
   }
+  for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
   const maxHp = 3 + Math.floor(level / 10);
   return {
     level,
@@ -448,36 +461,80 @@ export function updateGame(
         (q.ground || g.sky) && e.origin >= q.baseX && e.origin < q.baseX + q.w,
     );
     // Ground enemies defend their island; flyers can pursue across gaps.
-    const low =
-      e.behavior === 'float' ? 20 : (ground?.x ?? e.origin - e.range) + 8;
-    const high =
-      e.behavior === 'float'
-        ? g.worldWidth - e.w - 30
-        : (ground ? ground.x + ground.w : e.origin + e.range + e.w) - e.w - 8;
+    const low = airborne(e.behavior)
+      ? 20
+      : (ground?.x ?? e.origin - e.range) + 8;
+    const high = airborne(e.behavior)
+      ? g.worldWidth - e.w - 30
+      : (ground ? ground.x + ground.w : e.origin + e.range + e.w) - e.w - 8;
     const targetX = e.alert
       ? p.x + p.vx * (e.behavior === 'hop' ? 0.28 : 0.12)
       : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
     const direction = Math.sign(targetX - e.x);
-    const pace = e.alert ? 120 + g.difficulty * 70 : 34;
-    e.vx += (direction * pace - e.vx) * Math.min(1, dt * 8);
-    e.x = Math.max(low, Math.min(high, e.x + e.vx * dt));
-    if (e.behavior === 'float') {
-      const targetY = e.alert
-        ? Math.max(365, Math.min(500, p.y + 12))
-        : e.baseY - 38 + Math.sin(g.time * 2 + e.phase) * 20;
-      e.y += (targetY - e.y) * Math.min(1, dt * 2.5);
+    const pace =
+      (e.alert ? 120 + g.difficulty * 70 : 34) * enemyPace(e.noun[0]);
+    if (e.behavior === 'drop') {
+      e.vx = 0;
+      e.dropClock -= dt;
+      if (e.dropState === 'ready') {
+        e.y = e.baseY - 150;
+        // A short sway at the source warns of the next falling fruit.
+        e.x = Math.max(
+          low,
+          Math.min(high, e.origin + Math.sin(g.time * 8) * 3),
+        );
+        if (e.dropClock <= 0) {
+          e.dropState = 'fall';
+          e.vy = 0;
+        }
+      } else if (e.dropState === 'fall') {
+        e.vy += 820 * dt;
+        e.y = Math.min(e.baseY, e.y + e.vy * dt);
+        if (e.y >= e.baseY) {
+          e.dropState = 'rest';
+          e.dropClock = 2.2;
+          e.vy = 0;
+        }
+      } else if (e.dropClock <= 0 && Math.abs(p.y - (e.baseY - 150)) > 60) {
+        e.dropState = 'ready';
+        e.dropClock = 1.1;
+      }
     } else {
-      const targetY =
-        e.baseY -
-        (e.behavior === 'hop'
-          ? Math.max(0, Math.sin(g.time * (e.alert ? 3.1 : 2) + e.phase)) *
-            (e.alert ? 100 : 42)
-          : 0);
-      e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
+      const moving = e.behavior !== 'guard';
+      e.vx += ((moving ? direction * pace : 0) - e.vx) * Math.min(1, dt * 8);
+      e.x = Math.max(low, Math.min(high, e.x + e.vx * dt));
+      if (airborne(e.behavior)) {
+        const clearance =
+          e.behavior === 'fly' ? 65 : e.behavior === 'hover' ? 35 : 20;
+        const diving =
+          e.behavior === 'fly' &&
+          e.alert &&
+          Math.sin(g.time * 1.8 + e.phase) > 0.15;
+        const targetY = diving
+          ? e.baseY - 8
+          : e.alert
+            ? Math.max(190, Math.min(e.baseY, p.y + 12 - clearance))
+            : e.baseY - clearance + Math.sin(g.time * 2 + e.phase) * 18;
+        // Alternating low swoops keep flying enemies reachable with a jump.
+        e.y += (Math.min(e.baseY, targetY) - e.y) * Math.min(1, dt * 2.5);
+      } else {
+        const targetY =
+          e.baseY -
+          (e.behavior === 'hop'
+            ? Math.max(0, Math.sin(g.time * (e.alert ? 3.1 : 2) + e.phase)) *
+              (e.alert ? 100 : 42)
+            : 0);
+        e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
+      }
     }
     e.warning = 0;
     // Fire only within the visible encounter, with time to read and dodge the word.
-    if (e.alert && Math.abs(distance) < 360 && Math.abs(p.y - e.y) < 250) {
+    if (
+      e.alert &&
+      (e.behavior !== 'drop' || e.dropState === 'rest') &&
+      Math.abs(distance) < 360 &&
+      Math.abs(p.y - e.y) < 250
+    ) {
       e.fireTimer -= dt;
       e.warning = e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
       if (e.fireTimer <= 0 && g.shots.length < 10) {
@@ -767,6 +824,13 @@ export function drawGame(
     const age = t - e.defeatedAt;
     if (e.dead && age > 0.45) continue;
     const x = e.x - cam;
+    if (!e.dead && e.behavior === 'drop') {
+      ctx.fillStyle = '#a54f3e30';
+      ctx.beginPath();
+      ctx.ellipse(x + 24, e.baseY + e.h, 19, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (e.dropState === 'ready') text('↓', x + 24, e.y - 7, 19, '#a74b37');
+    }
     if (x < -100 || x > WIDTH + 100) continue;
     ctx.save();
     ctx.translate(x + e.w / 2, e.y + e.h);
@@ -777,7 +841,7 @@ export function drawGame(
     } else {
       const stride = Math.sin(t * e.speed * 9 + e.phase);
       ctx.rotate(
-        e.behavior === 'float'
+        airborne(e.behavior)
           ? Math.sin(t * 3 + e.phase) * 0.09
           : stride * 0.035,
       );
@@ -786,7 +850,14 @@ export function drawGame(
         1 - 0.035 * stride,
       );
     }
-    drawNounEnemy(ctx, e.noun[0], -25, -46, 50, 46);
+    if (e.behavior === 'roll' && !['Car', 'Train'].includes(e.noun[0])) {
+      ctx.translate(0, -23);
+      ctx.rotate(e.x / 28);
+      ctx.translate(0, 23);
+    }
+    if (e.behavior === 'slither') ctx.rotate(Math.sin(t * 9 + e.phase) * 0.1);
+    drawNounEnemy(ctx, e.noun[0], -25, -46, 50, 46, t + e.phase, e.vx);
+
     ctx.restore();
     if (!e.dead) {
       // Vocabulary appears when encountered; the enemy itself is only the object.
