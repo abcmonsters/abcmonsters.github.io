@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { voiceSpeaking } from './recorded-speech';
 import { drawMonSprite, monExpression, type MonPose } from './mon-animation';
 export default function MonPortrait({
   className = '',
@@ -28,10 +29,7 @@ export default function MonPortrait({
           hurt: 0,
           landing: 0,
           stride: 0,
-          speaking:
-            'speechSynthesis' in window &&
-            window.speechSynthesis.speaking &&
-            !window.speechSynthesis.paused,
+          speaking: voiceSpeaking(),
         };
         const { breath } = monExpression(t, pose);
         ctx.clearRect(0, 0, 328, 328);

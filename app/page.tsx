@@ -1,7 +1,12 @@
 'use client';
 import MonPortrait from './mon-portrait';
 import Link from 'next/link';
-import { pickEnglishVoice } from './speech';
+import {
+  speakVoice,
+  stopVoice,
+  voiceSpeaking,
+  voiceLabel,
+} from './recorded-speech';
 import { VOCABULARY } from './lesson-data';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -55,31 +60,14 @@ export default function Home() {
     [loaded, setLoaded] = useState(false),
     [assetError, setAssetError] = useState(false),
     [score, setScore] = useState(0),
-    [learned, setLearned] = useState<string[]>([]),
-    [voiceName, setVoiceName] = useState('Đang tìm giọng đọc…');
-  const voiceRef = useRef<SpeechSynthesisVoice | undefined>(undefined);
+    [learned, setLearned] = useState<string[]>([]);
+  const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
     world = WORLDS[level];
   const say = useCallback((phrase: string) => {
-    if (
-      mutedRef.current ||
-      typeof window === 'undefined' ||
-      !('speechSynthesis' in window)
-    )
-      return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(phrase);
-    u.lang = 'en-US';
-    u.rate = 0.88;
-    const selected =
-      pickEnglishVoice(window.speechSynthesis.getVoices()) || voiceRef.current;
-    if (selected) {
-      u.voice = selected;
-      u.lang = selected.lang;
-    }
-    window.speechSynthesis.speak(u);
+    if (!mutedRef.current) speakVoice(phrase);
   }, []);
   const tone = useCallback((hz: number) => {
     if (mutedRef.current) return;
@@ -112,12 +100,7 @@ export default function Home() {
   }, []);
   const changeMode = useCallback((m: Mode) => {
     game.current.mode = m;
-    if (
-      m !== 'playing' &&
-      typeof window !== 'undefined' &&
-      'speechSynthesis' in window
-    )
-      window.speechSynthesis.cancel();
+    if (m !== 'playing') stopVoice();
     setMode(m);
     input.current = { left: false, right: false, jump: false };
   }, []);
@@ -134,35 +117,9 @@ export default function Home() {
     setQuizRound(0);
     setMapOpen(false);
     input.current = { left: false, right: false, jump: false };
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window)
-      window.speechSynthesis.cancel();
+    stopVoice();
   }, []);
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) {
-      const id = requestAnimationFrame(() =>
-        setVoiceName('Thiết bị chưa hỗ trợ giọng đọc'),
-      );
-      return () => cancelAnimationFrame(id);
-    }
-    const refresh = () => {
-      const voice = pickEnglishVoice(window.speechSynthesis.getVoices());
-      voiceRef.current = voice;
-      setVoiceName(
-        voice
-          ? /google/i.test(voice.name)
-            ? 'Giọng Google · ' + voice.lang
-            : 'Giọng thiết bị · ' + voice.name
-          : 'Giọng mặc định của thiết bị',
-      );
-    };
-    const id = requestAnimationFrame(refresh);
-    window.speechSynthesis.addEventListener('voiceschanged', refresh);
-    return () => {
-      cancelAnimationFrame(id);
-      window.speechSynthesis.removeEventListener('voiceschanged', refresh);
-      window.speechSynthesis.cancel();
-    };
-  }, []);
+  useEffect(() => () => stopVoice(), []);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       try {
@@ -236,15 +193,7 @@ export default function Home() {
         setMode(g.mode);
       }
       last = now;
-      drawGame(
-        ctx,
-        g,
-        sprite,
-        now / 1000,
-        'speechSynthesis' in window &&
-          window.speechSynthesis.speaking &&
-          !window.speechSynthesis.paused,
-      );
+      drawGame(ctx, g, sprite, now / 1000, voiceSpeaking());
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -338,7 +287,7 @@ export default function Home() {
       localStorage.setItem('mon-alphabet-progress', JSON.stringify(next));
     } catch {}
     changeMode('won');
-    say(`Wonderful! ${letter} is for ${word[0]}`);
+    say(`${letter} is for ${word[0]}`);
     tone(880);
   }
   const touch = (key: 'left' | 'right' | 'jump') => ({
@@ -400,8 +349,7 @@ export default function Home() {
             onClick={() => {
               mutedRef.current = !muted;
               setMuted(!muted);
-              if (!muted && 'speechSynthesis' in window)
-                window.speechSynthesis.cancel();
+              if (!muted) stopVoice();
             }}
           >
             {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
