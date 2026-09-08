@@ -19,6 +19,8 @@ export type GameEvent = {
   noun?: Noun;
 };
 export type Enemy = Rect & {
+  vx: number;
+  alert: boolean;
   origin: number;
   baseY: number;
   range: number;
@@ -73,8 +75,10 @@ export type Game = {
     phase: number;
     warning: number;
     attackTimer: number;
+    dash: number;
+    direction: number;
   };
-  shots: (Rect & { vx: number; life: number; noun: Noun })[];
+  shots: (Rect & { vx: number; vy: number; life: number; noun: Noun })[];
   particles: Particle[];
   checkpoint: number;
   jumpBuffer: number;
@@ -127,6 +131,8 @@ export function createGame(level = 0): Game {
       second + gap + 700,
     ];
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => ({
+    vx: 0,
+    alert: false,
     x: safeOrigins[i],
     y: 506,
     w: 48,
@@ -184,6 +190,8 @@ export function createGame(level = 0): Game {
       phase: 0,
       warning: 0,
       attackTimer: 2.8,
+      dash: 0,
+      direction: -1,
     },
     shots: [],
     particles: [],
@@ -337,14 +345,39 @@ export function updateGame(
   });
   for (const e of g.enemies) {
     if (e.dead) continue;
-    e.x = e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
-    e.y =
-      e.baseY -
-      (e.behavior === 'hop'
-        ? Math.max(0, Math.sin(g.time * (2 + g.difficulty) + e.phase)) * 58
-        : e.behavior === 'float'
-          ? 38 + Math.sin(g.time * 2 + e.phase) * 20
+    const distance = p.x + p.w / 2 - (e.x + e.w / 2);
+    e.alert = Math.abs(distance) < (e.alert ? 650 : 350 + g.difficulty * 90);
+    const ground = g.platforms.find(
+      (q) => q.ground && e.origin >= q.x && e.origin < q.x + q.w,
+    );
+    // Ground enemies defend their island; flyers can pursue across gaps.
+    const low =
+      e.behavior === 'float' ? 20 : (ground?.x ?? e.origin - e.range) + 8;
+    const high =
+      e.behavior === 'float'
+        ? g.worldWidth - e.w - 30
+        : (ground ? ground.x + ground.w : e.origin + e.range + e.w) - e.w - 8;
+    const targetX = e.alert
+      ? p.x + p.vx * (e.behavior === 'hop' ? 0.28 : 0.12)
+      : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
+    const direction = Math.sign(targetX - e.x);
+    const pace = e.alert ? 82 + g.difficulty * 58 : 34;
+    e.vx += (direction * pace - e.vx) * Math.min(1, dt * 6);
+    e.x = Math.max(low, Math.min(high, e.x + e.vx * dt));
+    if (e.behavior === 'float') {
+      const targetY = e.alert
+        ? Math.max(365, Math.min(500, p.y + 12))
+        : e.baseY - 38 + Math.sin(g.time * 2 + e.phase) * 20;
+      e.y += (targetY - e.y) * Math.min(1, dt * 1.8);
+    } else {
+      const targetY =
+        e.baseY -
+        (e.behavior === 'hop'
+          ? Math.max(0, Math.sin(g.time * (e.alert ? 3.1 : 2) + e.phase)) *
+            (e.alert ? 100 : 42)
           : 0);
+      e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
+    }
     if (!e.seen && Math.abs(e.x - p.x) < 180) {
       e.seen = true;
       learn(g, e.noun, 'encounter');
@@ -366,34 +399,55 @@ export function updateGame(
   const b = g.boss;
   b.cooldown = Math.max(0, b.cooldown - dt);
   b.phase = g.time * (1.1 + g.difficulty * 0.7);
-  b.x = b.origin + Math.sin(b.phase) * (30 + g.difficulty * 30);
   b.warning = 0;
-  if (g.level >= 5 && p.x > g.worldWidth - 680 && b.hp > 0) {
+  const engaged = p.x > g.worldWidth - 780 && b.hp > 0;
+  if (engaged) {
     b.attackTimer -= dt;
-    if (b.attackTimer < 0.8) b.warning = 0.8 - b.attackTimer;
+    const enraged = b.hp <= Math.ceil(b.maxHp / 2);
+    if (b.dash > 0) {
+      b.dash = Math.max(0, b.dash - dt);
+      b.x += b.direction * (240 + g.difficulty * 65) * dt;
+    } else if (b.attackTimer > 0.8) {
+      b.x += Math.sign(p.x - b.x) * (45 + g.difficulty * 35) * dt;
+    } else {
+      b.warning = 0.8 - b.attackTimer;
+      // Commit after a visible wind-up: the player can dodge the charge.
+      b.direction = Math.sign(p.x + p.vx * 0.25 - b.x) || -1;
+    }
     if (b.attackTimer <= 0) {
       const noun = VOCABULARY[g.level][Math.floor(g.time) % 3];
+      const dx = p.x + p.w / 2 + p.vx * 0.25 - (b.x + b.w / 2);
+      const dy = p.y + p.h / 2 - (b.y + 60);
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const speed = 140 + g.difficulty * 65;
       g.shots.push({
-        x: b.x,
-        y: 517,
+        x: b.x + b.w / 2,
+        y: b.y + 60,
         w: 25,
         h: 25,
-        vx: -(135 + g.difficulty * 65),
+        vx: (dx / length) * speed,
+        vy: (dy / length) * speed,
         life: 4,
         noun,
       });
-      b.attackTimer = 3.2 - g.difficulty * 0.8;
+      b.dash = 0.48;
+      b.attackTimer = (enraged ? 2.5 : 3.3) - g.difficulty * 0.6;
     }
+    b.x = Math.max(g.worldWidth - 650, Math.min(g.worldWidth - 140, b.x));
   }
   for (const s of g.shots) {
     s.x += s.vx * dt;
+    s.y += s.vy * dt;
     s.life -= dt;
     if (overlaps(p, s)) {
       s.life = 0;
       hurt(g);
     }
   }
-  g.shots = g.shots.filter((s) => s.life > 0 && s.x > g.worldWidth - 850);
+  g.shots = g.shots.filter(
+    (s) =>
+      s.life > 0 && s.x > 0 && s.x < g.worldWidth && s.y > 0 && s.y < HEIGHT,
+  );
   if (b.hp > 0 && overlaps(p, b)) {
     if (p.vy > 0 && oldBottom < b.y + 25 && b.cooldown <= 0) {
       b.hp--;
@@ -405,11 +459,15 @@ export function updateGame(
       burst(g, b.x + 43, b.y + 45, '#f7d472', 20);
       g.events.push({ type: 'stomp' });
       if (b.hp === 0) {
-        g.mode = 'quiz';
         g.shots = [];
-        g.events.push({ type: 'quiz' });
+        b.dash = 0;
       }
     } else if (b.cooldown <= 0) hurt(g);
+  }
+  if (g.mode === 'playing' && b.hp === 0 && g.enemies.every((e) => e.dead)) {
+    g.mode = 'quiz';
+    g.shots = [];
+    g.events.push({ type: 'quiz' });
   }
   const targetCamera = Math.max(
     0,
@@ -689,35 +747,18 @@ export function drawGame(
         1 - 0.035 * stride,
       );
     }
-    rect(
-      -25,
-      -43,
-      50,
-      43,
-      e.behavior === 'walk'
-        ? '#f4c476'
-        : e.behavior === 'hop'
-          ? '#c5dea0'
-          : '#c4d5ed',
-    );
-    rect(-25, -43, 50, 4, '#fff6cf');
-    rect(-25, -3, 50, 5, '#5c694e');
     text(
       e.noun[2],
       0,
-      -8,
-      31,
+      -2,
+      46,
       '#fff',
       '"Apple Color Emoji","Segoe UI Emoji",sans-serif',
     );
-    const foot = Math.sin(t * 12 + e.phase) * 3;
-    rect(-20, 0, 12, 5 + foot, '#536346');
-    rect(8, 0, 12, 5 - foot, '#536346');
     ctx.restore();
     if (!e.dead) {
-      const labelW = Math.max(60, e.noun[0].length * 7 + 16);
-      rect(x + 24 - labelW / 2, e.y - 23, labelW, 19, '#f8ffe9ee');
-      text(e.noun[0], x + 24, e.y - 9, 12, '#374e34', 'Arial');
+      // Vocabulary appears when encountered; the enemy itself is only the object.
+      if (e.alert) text('!', x + e.w / 2, e.y - 9, 17, '#b84f38');
     }
   }
   const b = g.boss,
@@ -776,7 +817,37 @@ export function drawGame(
   const exit = g.worldWidth - 90;
   rect(exit - cam, 410, 12, 140, '#537853');
   rect(exit - cam, 410, 65, 12, '#537853');
-  text('✦', exit + 34 - cam, 454, 28, '#d5ac40');
+  const remaining = g.enemies.filter((e) => !e.dead);
+  text(
+    remaining.length || b.hp > 0 ? '🔒' : '✦',
+    exit + 34 - cam,
+    454,
+    28,
+    '#d5ac40',
+  );
+  if (g.mode === 'playing') {
+    text(
+      `Enemy: ${g.enemies.length - remaining.length}/${g.enemies.length}`,
+      WIDTH / 2,
+      88,
+      14,
+      night ? '#f5f4d7' : '#36533d',
+      'Arial',
+    );
+    if (b.hp === 0 && remaining.length) {
+      const nearest = [...remaining].sort(
+        (a, b) => Math.abs(a.x - g.player.x) - Math.abs(b.x - g.player.x),
+      )[0];
+      text(
+        `${nearest.x < g.player.x ? '←' : '→'} Còn ${remaining.length} enemy · ${nearest.noun[0]}`,
+        WIDTH / 2,
+        113,
+        14,
+        night ? '#fff1c1' : '#694831',
+        'Arial',
+      );
+    }
+  }
   const p = g.player,
     px = p.x - cam;
   ctx.fillStyle = '#20372d25';
@@ -844,7 +915,7 @@ export function drawGame(
       night ? '#edf0cc' : '#50794b',
     );
   }
-  if (p.x > g.worldWidth - 650 && g.mode === 'playing')
+  if (p.x > g.worldWidth - 650 && g.mode === 'playing' && b.hp > 0)
     text(
       b.warning > 0
         ? 'Trùm sắp tấn công — nhảy lên!'

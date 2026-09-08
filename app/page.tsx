@@ -671,7 +671,7 @@ export default function Home() {
             <div>
               <b>Gặp trùm chữ {letter}</b>
               <p>
-                Nhảy lên trùm {3 + Math.floor(level / 10)} lần,
+                Hạ hết enemy, nhảy lên trùm {3 + Math.floor(level / 10)} lần,
                 <br />
                 chọn đúng từ để qua màn!
               </p>
