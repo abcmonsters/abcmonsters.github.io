@@ -1,5 +1,6 @@
 import { drawMonSprite, monExpression } from './mon-animation';
-import { VOCABULARY, WORLDS, type Noun } from './lesson-data';
+import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
+import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
 export { WORDS, WORLDS, VOCABULARY } from './lesson-data';
 export const WIDTH = 432,
   HEIGHT = 640,
@@ -14,13 +15,16 @@ export type Platform = Rect & {
 };
 export type Mode = 'ready' | 'playing' | 'paused' | 'quiz' | 'won' | 'lost';
 export type GameEvent = {
-  type: 'collect' | 'hurt' | 'stomp' | 'quiz' | 'encounter' | 'jump';
+  type: 'collect' | 'hurt' | 'stomp' | 'quiz' | 'encounter' | 'jump' | 'heal';
+  food?: string;
   index?: number;
   noun?: Noun;
 };
 export type Enemy = Rect & {
   vx: number;
   alert: boolean;
+  fireTimer: number;
+  warning: number;
   origin: number;
   baseY: number;
   range: number;
@@ -65,6 +69,7 @@ export type Game = {
   learned: string[];
   difficulty: number;
   platforms: Platform[];
+  foods: (Rect & { name: string; kind: number; eaten: boolean })[];
   pickups: { x: number; y: number; got: boolean }[];
   enemies: Enemy[];
   boss: Rect & {
@@ -90,7 +95,7 @@ export function createGame(level = 0): Game {
   level = Math.max(0, Math.min(25, Math.floor(level)));
   const difficulty = level / 25,
     worldWidth = WORLD_WIDTH + Math.floor(level / 5) * 160,
-    gap = 82 + Math.floor(difficulty * 40),
+    gap = 300 + Math.floor(difficulty * 20),
     first = 635 + (level % 4) * 27,
     second = 1370 + (level % 3) * 31;
   const platforms: Platform[] = [];
@@ -116,8 +121,28 @@ export function createGame(level = 0): Game {
     add(x, y, 140 - difficulty * 22, 28, false, level >= 5 && i === 1);
     return { x: x + 57, y: y - 48, got: false };
   });
-  add(first - 155, 456, 95, 28);
-  add(second - 150, 456, 95, 28);
+  // Two river crossings require climbing and descending steps in either direction.
+  for (const bank of [first, second]) {
+    add(bank - 120, 480, 100, 24);
+    add(bank + 40, 412, 105, 24);
+    add(bank + 190, 478, 100, 24);
+  }
+  const foodPositions = [
+    { x: first - 85, y: 443 },
+    { x: second + 75, y: 375 },
+    { x: worldWidth - 505, y: 441 },
+  ];
+  const foods = foodPositions.map((pos, i) => {
+    const kind = (level + i) % VIET_FOODS.length;
+    return {
+      ...pos,
+      w: 34,
+      h: 34,
+      name: VIET_FOODS[kind][0],
+      kind,
+      eaten: false,
+    };
+  });
   add(worldWidth - 555, 478, 125, 28);
   add(worldWidth - 400, 478, 95, 28);
   if (level >= 10) add(second + gap + 395, 440, 95, 25, false, true);
@@ -126,13 +151,15 @@ export function createGame(level = 0): Game {
       first - 165,
       second - 150,
       second + gap + 350,
-      first + gap + 355,
+      (first + gap + second) / 2,
       second + gap + 540,
       second + gap + 700,
     ];
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => ({
     vx: 0,
     alert: false,
+    fireTimer: 1.8 + (i % 3) * 0.65,
+    warning: 0,
     x: safeOrigins[i],
     y: 506,
     w: 48,
@@ -177,6 +204,7 @@ export function createGame(level = 0): Game {
     difficulty,
     platforms,
     pickups,
+    foods,
     enemies,
     boss: {
       x: worldWidth - 235,
@@ -343,10 +371,19 @@ export function updateGame(
       g.events.push({ type: 'collect', index });
     }
   });
+  for (const food of g.foods) {
+    if (!food.eaten && g.hp < 3 && overlaps(p, food)) {
+      food.eaten = true;
+      g.hp = Math.min(3, g.hp + 1);
+      g.score += 30;
+      burst(g, food.x + 17, food.y + 17, '#b6ef8b', 14);
+      g.events.push({ type: 'heal', food: food.name });
+    }
+  }
   for (const e of g.enemies) {
     if (e.dead) continue;
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
-    e.alert = Math.abs(distance) < (e.alert ? 650 : 350 + g.difficulty * 90);
+    e.alert = Math.abs(distance) < (e.alert ? 1000 : 470 + g.difficulty * 100);
     const ground = g.platforms.find(
       (q) => q.ground && e.origin >= q.x && e.origin < q.x + q.w,
     );
@@ -361,14 +398,14 @@ export function updateGame(
       ? p.x + p.vx * (e.behavior === 'hop' ? 0.28 : 0.12)
       : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
     const direction = Math.sign(targetX - e.x);
-    const pace = e.alert ? 82 + g.difficulty * 58 : 34;
-    e.vx += (direction * pace - e.vx) * Math.min(1, dt * 6);
+    const pace = e.alert ? 120 + g.difficulty * 70 : 34;
+    e.vx += (direction * pace - e.vx) * Math.min(1, dt * 8);
     e.x = Math.max(low, Math.min(high, e.x + e.vx * dt));
     if (e.behavior === 'float') {
       const targetY = e.alert
         ? Math.max(365, Math.min(500, p.y + 12))
         : e.baseY - 38 + Math.sin(g.time * 2 + e.phase) * 20;
-      e.y += (targetY - e.y) * Math.min(1, dt * 1.8);
+      e.y += (targetY - e.y) * Math.min(1, dt * 2.5);
     } else {
       const targetY =
         e.baseY -
@@ -378,6 +415,30 @@ export function updateGame(
           : 0);
       e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
     }
+    e.warning = 0;
+    // Fire only within the visible encounter, with time to read and dodge the word.
+    if (e.alert && Math.abs(distance) < 360 && Math.abs(p.y - e.y) < 250) {
+      e.fireTimer -= dt;
+      e.warning = e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
+      if (e.fireTimer <= 0 && g.shots.length < 10) {
+        const width = Math.max(40, e.noun[0].length * 7 + 12);
+        const dx = p.x + p.w / 2 + p.vx * 0.22 - (e.x + e.w / 2);
+        const dy = p.y + p.h / 2 - (e.y + e.h / 2);
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const speed = 130 + g.difficulty * 60;
+        g.shots.push({
+          x: e.x + e.w / 2 - width / 2,
+          y: e.y + 12,
+          w: width,
+          h: 20,
+          vx: (dx / length) * speed,
+          vy: (dy / length) * speed,
+          life: 3.2,
+          noun: e.noun,
+        });
+        e.fireTimer = 2.9 - g.difficulty * 0.65 + (e.phase % 0.5);
+      }
+    } else e.fireTimer = Math.max(0.8, e.fireTimer);
     if (!e.seen && Math.abs(e.x - p.x) < 180) {
       e.seen = true;
       learn(g, e.noun, 'encounter');
@@ -423,8 +484,8 @@ export function updateGame(
       g.shots.push({
         x: b.x + b.w / 2,
         y: b.y + 60,
-        w: 25,
-        h: 25,
+        w: Math.max(40, noun[0].length * 7 + 12),
+        h: 20,
         vx: (dx / length) * speed,
         vy: (dy / length) * speed,
         life: 4,
@@ -540,13 +601,7 @@ export function drawGame(
     rect(x + 20, y - 35, 80, 45, palette.far);
     if (['mountain', 'snow', 'volcano', 'crystal'].includes(palette.kind)) {
       rect(x + 35, y - 65, 50, 34, palette.far);
-      rect(
-        x + 46,
-        y - 85,
-        28,
-        25,
-        palette.kind === 'snow' ? '#edf7e7' : palette.far,
-      );
+      rect(x + 46, y - 85, 28, 25, palette.far);
     }
   }
   if (!['space', 'crystal'].includes(palette.kind)) {
@@ -560,124 +615,14 @@ export function drawGame(
     }
     ctx.globalAlpha = 1;
   }
-  for (let i = 0; i < 18; i++) {
-    const x = i * 177 - cam * 0.48 - 80,
-      y = 355 + (i % 3) * 23;
-    switch (palette.kind) {
-      case 'city':
-      case 'castle': {
-        rect(x, y - 80, 90, 240, palette.tree);
-        rect(x + 10, y - 102, 70, 30, palette.tree);
-        if (palette.kind === 'castle') {
-          for (let j = 0; j < 4; j++)
-            rect(x + j * 25, y - 110, 15, 25, palette.tree);
-        }
-        for (let a = 15; a < 85; a += 24)
-          for (let b = -60; b < 110; b += 36)
-            rect(x + a, y + b, 10, 16, '#eadc9b70');
-        break;
-      }
-      case 'water': {
-        rect(x + 20, y + 30, 15, 180, palette.tree);
-        for (let j = 0; j < 4; j++)
-          rect(x + 5 + (j % 2) * 23, y + 20 + j * 25, 25, 14, palette.tree);
-        ctx.strokeStyle = '#e2fbf777';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(
-          x + 70,
-          y - 80 - ((t * 15 + i * 7) % 120),
-          6 + (i % 5),
-          0,
-          Math.PI * 2,
-        );
-        ctx.stroke();
-        break;
-      }
-      case 'space': {
-        rect(x, y, 80, 25, palette.tree);
-        rect(x + 18, y - 20, 45, 22, palette.tree);
-        rect(x + 30, y - 32, 20, 14, '#b7a0dc');
-        break;
-      }
-      case 'desert': {
-        rect(x + 30, y - 25, 18, 185, palette.tree);
-        rect(x + 5, y + 12, 30, 15, palette.tree);
-        rect(x + 5, y - 8, 12, 35, palette.tree);
-        rect(x + 48, y + 50, 30, 12, palette.tree);
-        rect(x + 65, y + 23, 13, 35, palette.tree);
-        break;
-      }
-      case 'crystal': {
-        ctx.fillStyle = palette.tree;
-        ctx.beginPath();
-        ctx.moveTo(x + 40, y - 90);
-        ctx.lineTo(x + 75, y + 70);
-        ctx.lineTo(x, y + 70);
-        ctx.closePath();
-        ctx.fill();
-        rect(x + 35, y - 20, 5, 80, '#b8ebde77');
-        break;
-      }
-      case 'sky': {
-        rect(x, y, 90, 28, '#f4edfa');
-        rect(x + 20, y - 18, 54, 22, '#f4edfa');
-        break;
-      }
-      case 'volcano': {
-        rect(x, y, 100, 180, palette.tree);
-        rect(x + 15, y - 40, 70, 50, palette.tree);
-        rect(x + 30, y - 70, 40, 35, palette.tree);
-        rect(x + 43, y - 58, 10, 135, '#f1a068');
-        break;
-      }
-      default: {
-        const broad = palette.kind === 'savanna';
-        rect(
-          x + 39,
-          y + 20,
-          15,
-          180,
-          palette.kind === 'snow' ? '#75919e' : '#68794e',
-        );
-        const sway = Math.sin(t * 1.2 + i) * 2;
-        rect(x + sway, y, broad ? 120 : 90, 45, palette.tree);
-        rect(
-          x + 15 + sway,
-          y - (broad ? 15 : 35),
-          broad ? 90 : 60,
-          40,
-          palette.tree,
-        );
-        if (!broad) rect(x + 28 + sway, y - 53, 35, 30, palette.tree);
-        if (palette.kind === 'garden')
-          text(i % 2 ? '🌸' : '🌼', x + 40, y + 7, 26, '#fff', 'sans-serif');
-        if (g.level === 0) text('🍎', x + 20, y + 33, 18, '#fff', 'sans-serif');
-      }
-    }
-  }
+  drawVietnamScene(ctx, g.level, cam, t);
   // Ambient weather is deterministic and uses no per-frame allocations.
   if (['snow', 'night', 'volcano', 'garden', 'crystal'].includes(palette.kind))
     for (let i = 0; i < 24; i++) {
       const x = (((i * 79 - cam * 0.2 + t * 12) % WIDTH) + WIDTH) % WIDTH,
-        y =
-          (i * 47 +
-            t * (palette.kind === 'snow' ? 22 : -12) +
-            g.level * 20 +
-            2000) %
-          HEIGHT;
+        y = (i * 47 + t * -12 + g.level * 20 + 2000) % HEIGHT;
       ctx.globalAlpha = 0.3 + (i % 4) * 0.15;
-      rect(
-        x,
-        y,
-        3,
-        3,
-        palette.kind === 'volcano'
-          ? '#f9b65c'
-          : palette.kind === 'garden'
-            ? '#ffdee8'
-            : '#f2f4d1',
-      );
+      rect(x, y, 3, 3, palette.kind === 'garden' ? '#ffdee8' : '#f2f4d1');
     }
   ctx.globalAlpha = 1;
   for (const p of g.platforms) {
@@ -699,6 +644,24 @@ export function drawGame(
     const x = g.checkpoint - cam;
     rect(x, 516, 3, 34, '#647442');
     rect(x + 3, 516, 17, 12, '#d5ef75');
+  }
+  for (const food of g.foods) {
+    if (food.eaten || food.x - cam < -60 || food.x - cam > WIDTH + 60) continue;
+    drawVietnamFood(
+      ctx,
+      food.x - cam + 17,
+      food.y + 17 + Math.sin(t * 3) * 3,
+      food.kind,
+    );
+    text('+1 ♥', food.x - cam + 17, food.y - 7, 12, '#38794c', 'Arial');
+    text(
+      food.name,
+      food.x - cam + 17,
+      food.y + 47,
+      10,
+      night ? '#f5edcf' : '#3b5e43',
+      'Arial',
+    );
   }
   for (let i = 0; i < g.pickups.length; i++) {
     const c = g.pickups[i];
@@ -758,7 +721,15 @@ export function drawGame(
     ctx.restore();
     if (!e.dead) {
       // Vocabulary appears when encountered; the enemy itself is only the object.
-      if (e.alert) text('!', x + e.w / 2, e.y - 9, 17, '#b84f38');
+      if (e.alert)
+        text(
+          e.warning > 0 ? e.noun[0] + ' !' : '!',
+          x + e.w / 2,
+          e.y - 9,
+          e.warning > 0 ? 12 : 17,
+          '#b84f38',
+          'Arial',
+        );
     }
   }
   const b = g.boss,
@@ -807,11 +778,18 @@ export function drawGame(
       rect(bx - 100, 543, 160, 4, '#e9b56b');
     }
   }
-  for (const s of g.shots) {
+  for (const shot of g.shots) {
+    const x = shot.x - cam;
     ctx.save();
-    ctx.translate(s.x - cam + 12, s.y + 12);
-    ctx.rotate(-t * 6);
-    text(s.noun[2], 0, 10, 25, '#fff', 'sans-serif');
+    ctx.shadowColor = '#fff6dc';
+    ctx.shadowBlur = 5;
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#fff2cc';
+    ctx.strokeText(shot.noun[0], x + shot.w / 2, shot.y + 15);
+    ctx.fillStyle = '#9d392d';
+    ctx.fillText(shot.noun[0], x + shot.w / 2, shot.y + 15);
     ctx.restore();
   }
   const exit = g.worldWidth - 90;

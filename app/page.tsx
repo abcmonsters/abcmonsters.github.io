@@ -177,7 +177,10 @@ export default function Home() {
             }
             if (e.type === 'stomp') tone(560);
           } else if (e.type === 'jump') tone(310);
-          else if (e.type === 'hurt') tone(140);
+          else if (e.type === 'heal') {
+            flash(`${e.food} · Hồi 1 tim ♥`);
+            tone(880);
+          } else if (e.type === 'hurt') tone(140);
           else if (e.type === 'stomp') tone(440);
           else if (e.type === 'quiz')
             say(
@@ -656,11 +659,11 @@ export default function Home() {
               <Sparkles size={20} />
             </span>
             <div>
-              <b>Nhặt 3 ngôi sao</b>
+              <b>Qua bậc đá, khám phá Việt Nam</b>
               <p>
-                Chữ hoa, chữ thường
+                Nhặt chữ hoa, chữ thường
                 <br />
-                và 3 từ vựng mới.
+                và 3 từ vựng mới. Ăn món Việt để hồi 1 tim.
               </p>
             </div>
           </div>
