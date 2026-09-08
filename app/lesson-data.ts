@@ -133,7 +133,7 @@ export const VOCABULARY: readonly (readonly Noun[])[] = [
 ];
 export const WORDS = VOCABULARY.map((words) => words[0]);
 export const SCENES = [
-  ['Phố cổ Hà Nội', 'city'],
+  ['Đường mây Tây Bắc', 'mountain'],
   ['Làng gốm Bát Tràng', 'garden'],
   ['Ruộng bậc thang Mù Cang Chải', 'mountain'],
   ['Phố đèn lồng Hội An', 'city'],

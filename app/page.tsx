@@ -1,6 +1,8 @@
 'use client';
+import { loadNounArt, nounArtPath } from './noun-art';
 import MonPortrait from './mon-portrait';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   speakVoice,
   stopVoice,
@@ -141,7 +143,16 @@ export default function Home() {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
     const sprite = new window.Image();
-    sprite.onload = () => setLoaded(true);
+    let active = true;
+    sprite.onload = () => {
+      void loadNounArt()
+        .then(() => {
+          if (active) setLoaded(true);
+        })
+        .catch(() => {
+          if (active) setAssetError(true);
+        });
+    };
     sprite.onerror = () => setAssetError(true);
     sprite.src = '/mon-sprite.png';
     let frame = 0,
@@ -166,13 +177,13 @@ export default function Home() {
                 ? `${l} — Chữ hoa`
                 : e.index === 1
                   ? `${l.toLowerCase()} — Chữ thường`
-                  : `${w[2]} ${w[0]} · ${w[1]}`,
+                  : `${w[0]} · ${w[1]}`,
             );
             say(phrase);
             tone(680);
           } else if (e.type === 'encounter' || (e.type === 'stomp' && e.noun)) {
             if (e.noun) {
-              flash(`${e.noun[2]} ${e.noun[0]} · ${e.noun[1]}`);
+              flash(`${e.noun[0]} · ${e.noun[1]}`);
               say(e.noun[0]);
             }
             if (e.type === 'stomp') tone(560);
@@ -201,6 +212,7 @@ export default function Home() {
     };
     frame = requestAnimationFrame(tick);
     return () => {
+      active = false;
       cancelAnimationFrame(frame);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
     };
@@ -440,7 +452,7 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="level-pill">
-                  {word[2]} {letter} is for {word[0]}
+                  {letter} is for {word[0]}
                 </div>
                 <p>
                   {world.name} · Độ khó {1 + Math.floor(level / 5)}/6
@@ -452,9 +464,9 @@ export default function Home() {
                 >
                   <Play size={20} fill="currentColor" />
                   {assetError
-                    ? 'Không tải được Mon'
+                    ? 'Không tải được hình nhân vật'
                     : !loaded
-                      ? 'Đang tải Mon…'
+                      ? 'Đang tải nhân vật…'
                       : 'Bắt đầu phiêu lưu'}
                 </button>
                 {assetError ? (
@@ -503,7 +515,13 @@ export default function Home() {
                   {letter.toLowerCase()}
                 </span>
                 <h2 className="quiz-object">
-                  {VOCABULARY[level][quizRound][2]}
+                  <Image
+                    unoptimized
+                    src={nounArtPath(VOCABULARY[level][quizRound][0])}
+                    alt=""
+                    width={64}
+                    height={64}
+                  />
                 </h2>
                 <p>Từ nào có nghĩa là “{VOCABULARY[level][quizRound][1]}”?</p>
                 <button
@@ -545,7 +563,15 @@ export default function Home() {
                 </div>
                 <h2>Giỏi lắm, bạn ơi!</h2>
                 <div className="learned-word">
-                  <span>{word[2]}</span>
+                  <span>
+                    <Image
+                      unoptimized
+                      src={nounArtPath(word[0])}
+                      alt=""
+                      width={42}
+                      height={42}
+                    />
+                  </span>
                   <b>
                     {letter} is for {word[0]}
                   </b>
@@ -563,7 +589,14 @@ export default function Home() {
                 <div className="win-words">
                   {VOCABULARY[level].map((n) => (
                     <button key={n[0]} onClick={() => say(n[0])}>
-                      {n[2]} {n[0]} <Volume2 size={12} />
+                      <Image
+                        unoptimized
+                        src={nounArtPath(n[0])}
+                        alt=""
+                        width={24}
+                        height={24}
+                      />{' '}
+                      {n[0]} <Volume2 size={12} />
                     </button>
                   ))}
                 </div>
@@ -626,7 +659,14 @@ export default function Home() {
           <div className="mobile-wordbook">
             {VOCABULARY[level].map((n) => (
               <button key={n[0]} onClick={() => say(n[0])}>
-                {n[2]} {n[0]} <Volume2 size={12} />
+                <Image
+                  unoptimized
+                  src={nounArtPath(n[0])}
+                  alt=""
+                  width={24}
+                  height={24}
+                />{' '}
+                {n[0]} <Volume2 size={12} />
               </button>
             ))}
           </div>
@@ -659,11 +699,17 @@ export default function Home() {
               <Sparkles size={20} />
             </span>
             <div>
-              <b>Qua bậc đá, khám phá Việt Nam</b>
+              <b>
+                {level === 0
+                  ? 'Vượt 28 bậc đường mây'
+                  : 'Qua bậc đá, khám phá Việt Nam'}
+              </b>
               <p>
                 Nhặt chữ hoa, chữ thường
                 <br />
-                và 3 từ vựng mới. Ăn món Việt để hồi 1 tim.
+                và 3 từ vựng mới. Ăn món Việt để hồi 1 tim.{' '}
+                {level === 0 &&
+                  '10 enemy trên đường mây dài gấp đôi. Rơi là thua!'}
               </p>
             </div>
           </div>
@@ -688,7 +734,15 @@ export default function Home() {
                 onClick={() => say(n[0])}
                 className={learned.includes(n[0]) ? 'word-seen' : ''}
               >
-                <span>{n[2]}</span>
+                <span>
+                  <Image
+                    unoptimized
+                    src={nounArtPath(n[0])}
+                    alt=""
+                    width={30}
+                    height={30}
+                  />
+                </span>
                 <div>
                   <b>{n[0]}</b>
                   <small>{n[1]}</small>

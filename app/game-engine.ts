@@ -1,3 +1,4 @@
+import { drawNounEnemy } from './noun-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -48,6 +49,7 @@ export type Particle = {
 };
 export type Game = {
   level: number;
+  sky: boolean;
   mode: Mode;
   time: number;
   camera: number;
@@ -94,7 +96,7 @@ export type Game = {
 export function createGame(level = 0): Game {
   level = Math.max(0, Math.min(25, Math.floor(level)));
   const difficulty = level / 25,
-    worldWidth = WORLD_WIDTH + Math.floor(level / 5) * 160,
+    worldWidth = level === 0 ? 5600 : WORLD_WIDTH + Math.floor(level / 5) * 160,
     gap = 300 + Math.floor(difficulty * 20),
     first = 635 + (level % 4) * 27,
     second = 1370 + (level % 3) * 31;
@@ -175,9 +177,66 @@ export function createGame(level = 0): Game {
     defeatedAt: 0,
     phase: i * 2.1 + level * 0.3,
   }));
+  if (level === 0) {
+    platforms.length = 0;
+    add(0, 550, 350, 100, true);
+    const heights = [480, 412, 350, 412, 478, 420, 360];
+    for (let i = 0; i < 28; i++)
+      add(
+        430 + i * 170,
+        heights[i % heights.length],
+        i < 14 ? 126 : 112,
+        25,
+        false,
+        [5, 12, 20].includes(i),
+      );
+    add(5160, 450, 110, 25);
+    add(5200, 550, 400, 100, true);
+    add(5260, 472, 105, 25);
+    add(5410, 472, 105, 25);
+    pickups.splice(
+      0,
+      pickups.length,
+      ...[3, 14, 24].map((i) => ({
+        x: 430 + i * 170 + 48,
+        y: heights[i % heights.length] - 48,
+        got: false,
+      })),
+    );
+    foods.splice(
+      0,
+      foods.length,
+      ...[6, 17, 25].map((i, j) => ({
+        x: 430 + i * 170 + 38,
+        y: heights[i % heights.length] - 36,
+        w: 34,
+        h: 34,
+        name: VIET_FOODS[j][0],
+        kind: j,
+        eaten: false,
+      })),
+    );
+    const sample = enemies.map((e) => ({ ...e }));
+    enemies.splice(
+      0,
+      enemies.length,
+      ...[1, 4, 7, 10, 13, 16, 19, 22, 24, 26].map((step, i) => ({
+        ...sample[i % 3],
+        x: 430 + step * 170 + 35,
+        origin: 430 + step * 170 + 35,
+        y: heights[step % heights.length] - 44,
+        baseY: heights[step % heights.length] - 44,
+        range: 22,
+        phase: i * 1.3,
+        fireTimer: 2 + (i % 3),
+        noun: VOCABULARY[0][i % 3],
+      })),
+    );
+  }
   const maxHp = 3 + Math.floor(level / 10);
   return {
     level,
+    sky: level === 0,
     mode: 'ready',
     time: 0,
     camera: 0,
@@ -256,7 +315,7 @@ function learn(g: Game, noun: Noun, type: 'encounter' | 'stomp') {
 }
 export function hurt(g: Game, fall = false) {
   if (g.mode !== 'playing' || (g.player.invincible > 0 && !fall)) return;
-  g.hp--;
+  g.hp = fall && g.sky ? 0 : g.hp - 1;
   g.combo = 0;
   g.shake = 0.25;
   g.events.push({ type: 'hurt' });
@@ -385,7 +444,8 @@ export function updateGame(
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = Math.abs(distance) < (e.alert ? 1000 : 470 + g.difficulty * 100);
     const ground = g.platforms.find(
-      (q) => q.ground && e.origin >= q.x && e.origin < q.x + q.w,
+      (q) =>
+        (q.ground || g.sky) && e.origin >= q.baseX && e.origin < q.baseX + q.w,
     );
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low =
@@ -494,7 +554,10 @@ export function updateGame(
       b.dash = 0.48;
       b.attackTimer = (enraged ? 2.5 : 3.3) - g.difficulty * 0.6;
     }
-    b.x = Math.max(g.worldWidth - 650, Math.min(g.worldWidth - 140, b.x));
+    b.x = Math.max(
+      g.worldWidth - (g.sky ? 400 : 650),
+      Math.min(g.worldWidth - 140, b.x),
+    );
   }
   for (const s of g.shots) {
     s.x += s.vx * dt;
@@ -615,7 +678,14 @@ export function drawGame(
     }
     ctx.globalAlpha = 1;
   }
-  drawVietnamScene(ctx, g.level, cam, t);
+  if (g.sky) {
+    // Distant northern mountains and drifting clouds under the narrow sky path.
+    for (let i = -1; i < 8; i++) {
+      const x = i * 110 - ((cam * 0.16) % 110);
+      rect(x, 522 + (i % 2) * 18, 115, 90, '#c8dfd5');
+      rect(x + 20, 504 + (i % 2) * 18, 65, 24, '#e9f1df');
+    }
+  } else drawVietnamScene(ctx, g.level, cam, t);
   // Ambient weather is deterministic and uses no per-frame allocations.
   if (['snow', 'night', 'volcano', 'garden', 'crystal'].includes(palette.kind))
     for (let i = 0; i < 24; i++) {
@@ -629,8 +699,14 @@ export function drawGame(
     const x = p.x - cam;
     if (x + p.w < 0 || x > WIDTH) continue;
     rect(x + 6, p.y + 7, p.w, p.h, '#35513044');
-    rect(x, p.y, p.w, p.h, palette.soil);
-    rect(x, p.y, p.w, 12, p.moving ? '#dbbb76' : palette.grass);
+    rect(x, p.y, p.w, p.h, g.sky && !p.ground ? '#86a4a1' : palette.soil);
+    rect(
+      x,
+      p.y,
+      p.w,
+      12,
+      p.moving ? '#dbbb76' : g.sky ? '#f4f4df' : palette.grass,
+    );
     rect(x, p.y + 12, p.w, 5, '#304b3340');
     for (let a = 0; a < p.w; a += 28) {
       rect(x + a, p.y + 5, 16, 5, '#f4f8d544');
@@ -710,14 +786,7 @@ export function drawGame(
         1 - 0.035 * stride,
       );
     }
-    text(
-      e.noun[2],
-      0,
-      -2,
-      46,
-      '#fff',
-      '"Apple Color Emoji","Segoe UI Emoji",sans-serif',
-    );
+    drawNounEnemy(ctx, e.noun[0], -25, -46, 50, 46);
     ctx.restore();
     if (!e.dead) {
       // Vocabulary appears when encountered; the enemy itself is only the object.
@@ -883,6 +952,8 @@ export function drawGame(
   ctx.globalAlpha = 1;
   if (g.combo > 1 && g.comboTime > 0)
     text(`COMBO ×${Math.min(g.combo, 5)}`, px + 21, p.y - 18, 14, '#fff3b1');
+  if (g.sky && g.mode === 'playing')
+    text('ĐƯỜNG MÂY · RƠI LÀ THUA', WIDTH / 2, 610, 13, '#4c6f69', 'Arial');
   if (cam < 200) {
     text('→', 180 - cam, 501, 26, '#668d52');
     text(
