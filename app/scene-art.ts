@@ -1,8 +1,8 @@
-const SCENE_PATHS = [
-  '/scenes-v2/northwest-vietnam.webp?v=panorama-1',
-  '/scenes-v2/central-vietnam.webp?v=panorama-1',
-  '/scenes-v2/mekong-vietnam.webp?v=panorama-1',
-] as const;
+const SCENE_PATHS = Array.from(
+  { length: 26 },
+  (_, level) =>
+    `/scenes-v3/level-${String.fromCharCode(97 + level)}.webp?v=unique-scenes-1`,
+);
 
 const scenes: HTMLImageElement[] = [];
 let loading: Promise<void> | undefined;
@@ -31,7 +31,7 @@ export function drawSceneArt(
   camera: number,
   worldWidth: number,
 ) {
-  const image = scenes[level < 9 ? 0 : level < 18 ? 1 : 2];
+  const image = scenes[level];
   if (!image?.complete || !image.naturalWidth) return false;
   const sourceHeight = image.naturalHeight;
   const sourceWidth = sourceHeight * (432 / 640);
