@@ -8,6 +8,7 @@ export type EnemyMotion =
   | 'slither'
   | 'hover'
   | 'guard';
+export type EnemyHabitat = 'land' | 'water' | 'sky' | 'flex';
 const groups: Record<EnemyMotion, string[]> = {
   walk: [
     'Ant',
@@ -87,6 +88,14 @@ export function enemyMotion(word: string): EnemyMotion {
   );
   if (!match) throw new Error('Missing enemy motion: ' + word);
   return match[0];
+}
+export function enemyHabitat(word: string): EnemyHabitat {
+  const motion = enemyMotion(word);
+  if (motion === 'swim') return 'water';
+  if (motion === 'fly') return 'sky';
+  if (motion === 'walk' || motion === 'hop' || motion === 'slither')
+    return 'land';
+  return 'flex';
 }
 export function enemyPace(word: string) {
   return ['Turtle', 'Elephant', 'Penguin'].includes(word)

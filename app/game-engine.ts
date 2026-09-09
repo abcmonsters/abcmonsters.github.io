@@ -1,7 +1,9 @@
 import {
+  enemyHabitat,
   enemyMotion,
   enemyPace,
   airborne,
+  type EnemyHabitat,
   type EnemyMotion,
 } from './enemy-traits';
 import { drawNounEnemy } from './noun-art';
@@ -38,6 +40,7 @@ export type Enemy = Rect & {
   range: number;
   speed: number;
   behavior: EnemyMotion;
+  habitat: EnemyHabitat;
   dropClock: number;
   dropState: 'ready' | 'fall' | 'rest';
   vy: number;
@@ -175,13 +178,14 @@ export function createGame(level = 0): Game {
   add(worldWidth - 400, 478, 95, 28);
   if (level >= 10) add(second + gap + 395, 440, 95, 25, false, true);
   const levelMotions = VOCABULARY[level].map(([word]) => enemyMotion(word));
-  if (levelMotions.includes('fly') || levelMotions.includes('hover')) {
+  const levelHabitats = VOCABULARY[level].map(([word]) => enemyHabitat(word));
+  if (levelHabitats.includes('sky') || levelMotions.includes('hover')) {
     const start = Math.floor(worldWidth * 0.34);
     [430, 365, 300, 245, 300, 365, 430].forEach((y, i) =>
       add(start + i * 145, y, 108 - difficulty * 15, 22, false, i === 3),
     );
   }
-  if (levelMotions.includes('swim')) {
+  if (levelHabitats.includes('water')) {
     const start = Math.floor(worldWidth * 0.48);
     for (let i = 0; i < 6; i++)
       add(start + i * 150, 442 + (i % 2) * 35, 92, 20, false, i === 2);
@@ -194,6 +198,7 @@ export function createGame(level = 0): Game {
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => {
     const noun = VOCABULARY[level][i % 3];
     const behavior = enemyMotion(noun[0]);
+    const habitat = enemyHabitat(noun[0]);
     const host =
       habitatPlatforms[Math.floor((i / count) * habitatPlatforms.length)];
     const origin =
@@ -219,6 +224,7 @@ export function createGame(level = 0): Game {
       range: 32 + difficulty * 18,
       speed: 0.95 + difficulty * 0.85,
       behavior,
+      habitat,
       dropClock: 1.4 + i * 0.2,
       dropState: 'ready',
       vy: 0,
@@ -497,8 +503,7 @@ export function updateGame(
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = Math.abs(distance) < (e.alert ? 1000 : 470 + g.difficulty * 100);
     const ground = g.platforms.find(
-      (q) =>
-        (q.ground || g.sky) && e.origin >= q.baseX && e.origin < q.baseX + q.w,
+      (q) => e.origin >= q.baseX && e.origin < q.baseX + q.w,
     );
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low = airborne(e.behavior)
@@ -545,7 +550,10 @@ export function updateGame(
       e.x = Math.max(low, Math.min(high, e.x + e.vx * dt));
       if (airborne(e.behavior)) {
         if (e.behavior === 'swim') {
-          const waterY = 492 + Math.sin(g.time * 2.2 + e.phase) * 28;
+          const wave = Math.sin(g.time * 2.25 + e.phase);
+          const leap = Math.pow(Math.max(0, wave), 1.7) * 88;
+          const dive = Math.min(0, wave) * -20;
+          const waterY = 500 - leap + dive;
           e.y += (waterY - e.y) * Math.min(1, dt * 2.8);
         } else {
           const clearance = e.behavior === 'fly' ? 65 : 35;
@@ -562,12 +570,20 @@ export function updateGame(
           e.y += (Math.min(e.baseY, targetY) - e.y) * Math.min(1, dt * 2.5);
         }
       } else {
-        const targetY =
-          e.baseY -
-          (e.behavior === 'hop'
-            ? Math.max(0, Math.sin(g.time * (e.alert ? 3.1 : 2) + e.phase)) *
-              (e.alert ? 100 : 42)
-            : 0);
+        const groundMotion = ['walk', 'hop', 'slither'].includes(e.behavior);
+        const jump = Math.max(
+          0,
+          Math.sin(g.time * (e.alert ? 3.1 : 2.15) + e.phase),
+        );
+        const amplitude =
+          e.behavior === 'hop'
+            ? e.alert
+              ? 100
+              : 56
+            : e.behavior === 'walk'
+              ? 18
+              : 7;
+        const targetY = e.baseY - (groundMotion ? jump * amplitude : 0);
         e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
       }
     }
@@ -715,7 +731,13 @@ export function drawGame(
   const palette = WORLDS[g.level],
     t = g.time,
     cam = g.camera,
-    night = ['night', 'space', 'crystal', 'volcano'].includes(palette.kind);
+    night = ['night', 'space', 'crystal', 'volcano'].includes(palette.kind),
+    hasWaterEnemies = VOCABULARY[g.level].some(
+      ([word]) => enemyHabitat(word) === 'water',
+    ),
+    hasSkyEnemies = VOCABULARY[g.level].some(
+      ([word]) => enemyHabitat(word) === 'sky',
+    );
   ctx.imageSmoothingEnabled = false;
   ctx.save();
   if (g.shake > 0)
@@ -795,6 +817,27 @@ export function drawGame(
       rect(x + 20, 504 + (i % 2) * 18, 65, 24, '#e9f1df');
     }
   } else if (!hasPaintedScene) drawVietnamScene(ctx, g.level, cam, t);
+  if (hasSkyEnemies) {
+    for (let i = 0; i < 5; i++) {
+      const x = ((((i * 127 - cam * 0.16 + t * 4) % 620) + 620) % 620) - 90;
+      const y = 205 + (i % 3) * 74;
+      ctx.globalAlpha = 0.5;
+      rect(x, y, 82, 12, '#ffffff');
+      rect(x + 18, y - 10, 42, 13, '#ffffff');
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (hasWaterEnemies) {
+    const water = ctx.createLinearGradient(0, 455, 0, HEIGHT);
+    water.addColorStop(0, '#73d7eb88');
+    water.addColorStop(1, '#087fa8cc');
+    ctx.fillStyle = water;
+    ctx.fillRect(0, 455, WIDTH, HEIGHT - 455);
+    for (let i = 0; i < 9; i++) {
+      const x = ((((i * 67 - cam * 0.22 + t * 10) % 540) + 540) % 540) - 50;
+      rect(x, 463 + (i % 4) * 39, 42, 3, '#d8fbff99');
+    }
+  }
   // Ambient weather is deterministic and uses no per-frame allocations.
   if (['snow', 'night', 'volcano', 'garden', 'crystal'].includes(palette.kind))
     for (let i = 0; i < 24; i++) {
@@ -882,6 +925,23 @@ export function drawGame(
       ctx.ellipse(x + 24, e.baseY + e.h, 19, 4, 0, 0, Math.PI * 2);
       ctx.fill();
       if (e.dropState === 'ready') text('↓', x + 24, e.y - 7, 19, '#a74b37');
+    }
+    if (!e.dead && e.habitat === 'water') {
+      ctx.globalAlpha = 0.6;
+      for (let bubble = 0; bubble < 3; bubble++) {
+        ctx.strokeStyle = '#d9fbff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(
+          x + 8 + bubble * 13,
+          e.y + 38 + ((bubble * 17 + t * 18) % 42),
+          2 + bubble,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
     if (x < -100 || x > WIDTH + 100) continue;
     ctx.save();
