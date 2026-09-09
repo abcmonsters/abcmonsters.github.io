@@ -1,5 +1,6 @@
 'use client';
 import { loadNounArt, nounArtPath } from './noun-art';
+import { loadSceneArt } from './scene-art';
 import MonPortrait from './mon-portrait';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -145,7 +146,7 @@ export default function Home() {
     const sprite = new window.Image();
     let active = true;
     sprite.onload = () => {
-      void loadNounArt()
+      void Promise.all([loadNounArt(), loadSceneArt()])
         .then(() => {
           if (active) setLoaded(true);
         })
