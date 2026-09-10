@@ -41,6 +41,7 @@ export type GameEvent = {
   noun?: Noun;
 };
 export type Enemy = Rect & {
+  rockHp: number;
   vx: number;
   alert: boolean;
   fireTimer: number;
@@ -241,6 +242,7 @@ export function createGame(level = 0): Game {
       dropState: 'ready',
       vy: 0,
       noun,
+      rockHp: 3,
       dead: false,
       seen: false,
       defeatedAt: 0,
@@ -372,10 +374,10 @@ export function activateEarthSkill(g: Game) {
     return false;
   const direction = g.player.facing || 1;
   g.earthShots.push({
-    x: g.player.x + (direction > 0 ? g.player.w - 2 : -30),
-    y: g.player.y + 15,
-    w: 34,
-    h: 34,
+    x: g.player.x + (direction > 0 ? g.player.w - 2 : -12),
+    y: g.player.y + 24,
+    w: 12,
+    h: 12,
     vx: direction * 430,
     vy: -55,
     life: 2.2,
@@ -737,13 +739,22 @@ export function updateGame(
     rock.life -= dt;
     for (const e of g.enemies) {
       if (!e.dead && overlaps(rock, e)) {
-        e.dead = true;
-        e.defeatedAt = g.time;
+        e.rockHp--;
         rock.life = 0;
-        g.score += 70;
+        g.score += e.rockHp <= 0 ? 70 : 15;
         g.shake = 0.1;
-        burst(g, e.x + e.w / 2, e.y + e.h / 2, '#e0b04e', 18);
-        learn(g, e.noun, 'stomp');
+        burst(
+          g,
+          e.x + e.w / 2,
+          e.y + e.h / 2,
+          '#e0b04e',
+          e.rockHp <= 0 ? 18 : 9,
+        );
+        if (e.rockHp <= 0) {
+          e.dead = true;
+          e.defeatedAt = g.time;
+          learn(g, e.noun, 'stomp');
+        }
         g.events.push({ type: 'earthHit', noun: e.noun });
         break;
       }
@@ -1079,6 +1090,16 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
+      if (e.rockHp < 3) {
+        for (let hit = 0; hit < 3; hit++)
+          rect(
+            x + 8 + hit * 12,
+            e.y - 24,
+            9,
+            4,
+            hit < e.rockHp ? '#f0c459' : '#593c2f88',
+          );
+      }
       // Vocabulary appears when encountered; the enemy itself is only the object.
       if (e.alert)
         text(
@@ -1153,10 +1174,10 @@ export function drawGame(
   }
   for (const rock of g.earthShots) {
     const x = rock.x - cam + rock.w / 2;
-    if (!drawEarthRock(ctx, x, rock.y + rock.h / 2, 45, rock.spin)) {
+    if (!drawEarthRock(ctx, x, rock.y + rock.h / 2, 11.25, rock.spin)) {
       ctx.fillStyle = '#9b6a36';
       ctx.beginPath();
-      ctx.arc(x, rock.y + 17, 16, 0, Math.PI * 2);
+      ctx.arc(x, rock.y + rock.h / 2, 5.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
