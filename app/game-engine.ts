@@ -7,7 +7,7 @@ import {
   type EnemyMotion,
 } from './enemy-traits';
 import { drawNounEnemy } from './noun-art';
-import { drawSceneArt } from './scene-art';
+import { drawCloudArt, drawSceneArt } from './scene-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -817,26 +817,51 @@ export function drawGame(
       rect(x + 20, 504 + (i % 2) * 18, 65, 24, '#e9f1df');
     }
   } else if (!hasPaintedScene) drawVietnamScene(ctx, g.level, cam, t);
-  if (hasSkyEnemies) {
-    for (let i = 0; i < 5; i++) {
-      const x = ((((i * 127 - cam * 0.16 + t * 4) % 620) + 620) % 620) - 90;
-      const y = 205 + (i % 3) * 74;
-      ctx.globalAlpha = 0.5;
-      rect(x, y, 82, 12, '#ffffff');
-      rect(x + 18, y - 10, 42, 13, '#ffffff');
-    }
-    ctx.globalAlpha = 1;
-  }
+  if (hasSkyEnemies) drawCloudArt(ctx, g.level, cam, t, night);
   if (hasWaterEnemies) {
+    const surfaceY = 455;
     const water = ctx.createLinearGradient(0, 455, 0, HEIGHT);
-    water.addColorStop(0, '#73d7eb88');
-    water.addColorStop(1, '#087fa8cc');
+    water.addColorStop(0, '#8debf0a8');
+    water.addColorStop(0.35, '#25b9d3b8');
+    water.addColorStop(1, '#076b9ae8');
     ctx.fillStyle = water;
-    ctx.fillRect(0, 455, WIDTH, HEIGHT - 455);
-    for (let i = 0; i < 9; i++) {
-      const x = ((((i * 67 - cam * 0.22 + t * 10) % 540) + 540) % 540) - 50;
-      rect(x, 463 + (i % 4) * 39, 42, 3, '#d8fbff99');
+    ctx.fillRect(0, surfaceY, WIDTH, HEIGHT - surfaceY);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, surfaceY - 12, WIDTH, HEIGHT - surfaceY + 12);
+    ctx.clip();
+    for (let layer = 0; layer < 4; layer++) {
+      ctx.beginPath();
+      const baseY = surfaceY + layer * 20;
+      for (let x = -12; x <= WIDTH + 12; x += 8) {
+        const y =
+          baseY +
+          Math.sin(
+            x * (0.032 + layer * 0.006) + t * (2.2 - layer * 0.2) - cam * 0.012,
+          ) *
+            (5 - layer * 0.55) +
+          Math.sin(x * 0.078 - t * 1.25 + layer) * 1.8;
+        if (x === -12) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = ['#efffffe8', '#b9f7f0a8', '#75e2eab0', '#37c6d6a0'][
+        layer
+      ];
+      ctx.lineWidth = layer === 0 ? 4 : 2;
+      ctx.stroke();
     }
+    for (let i = 0; i < 12; i++) {
+      const x = ((((i * 79 - cam * 0.18 + t * 13) % 560) + 560) % 560) - 64;
+      const y = surfaceY + 35 + ((i * 47 + g.level * 13) % 128);
+      ctx.globalAlpha = 0.18 + (i % 3) * 0.08;
+      ctx.strokeStyle = '#e2ffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 18 + (i % 4) * 7, 3, -0.08, 0, Math.PI * 1.55);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
   // Ambient weather is deterministic and uses no per-frame allocations.
   if (['snow', 'night', 'volcano', 'garden', 'crystal'].includes(palette.kind))
@@ -927,6 +952,12 @@ export function drawGame(
       if (e.dropState === 'ready') text('↓', x + 24, e.y - 7, 19, '#a74b37');
     }
     if (!e.dead && e.habitat === 'water') {
+      const ripple = 17 + Math.sin(t * 4 + e.phase) * 5;
+      ctx.strokeStyle = '#e8ffffb8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x + e.w / 2, 457, ripple, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.globalAlpha = 0.6;
       for (let bubble = 0; bubble < 3; bubble++) {
         ctx.strokeStyle = '#d9fbff';
