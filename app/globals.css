@@ -389,6 +389,38 @@ a {
   border-color: #93aa54;
   border-bottom-color: #728d40;
 }
+.controls .earth-button {
+  width: 76px;
+  gap: 3px;
+  background: #715032;
+  border-color: #a37843;
+  border-bottom-color: #412b1d;
+  color: #f6ddb0;
+  font-size: 10px;
+  font-weight: 900;
+  opacity: 0.42;
+  filter: grayscale(0.7);
+}
+.controls .earth-button.ready {
+  opacity: 1;
+  filter: none;
+  animation: earth-ready 1.15s ease-in-out infinite alternate;
+}
+.controls .earth-button:disabled {
+  cursor: not-allowed;
+}
+.controls .earth-button img {
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px #24180d99);
+}
+@keyframes earth-ready {
+  from {
+    box-shadow: 0 0 0 #f3c65300;
+  }
+  to {
+    box-shadow: 0 0 15px #f3c653a8;
+  }
+}
 .controls > span {
   font-size: 9px;
   letter-spacing: 1.5px;
@@ -567,6 +599,9 @@ footer span {
   }
   .controls .jump-button {
     width: 112px;
+  }
+  .controls .earth-button {
+    width: 78px;
   }
   .keyboard-note,
   footer {

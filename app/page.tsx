@@ -1,6 +1,7 @@
 'use client';
 import { loadNounArt, nounArtPath } from './noun-art';
 import { loadSceneArt } from './scene-art';
+import { loadEarthArt } from './earth-art';
 import { loadVietnamFoodArt } from './vietnam-scene';
 import MonPortrait from './mon-portrait';
 import Link from 'next/link';
@@ -42,13 +43,14 @@ import {
   WORLDS,
   WIDTH,
   HEIGHT,
+  earthAbilityReady,
   type Mode,
 } from './game-engine';
 
 export default function Home() {
   const canvas = useRef<HTMLCanvasElement>(null),
     game = useRef(createGame()),
-    input = useRef({ left: false, right: false, jump: false }),
+    input = useRef({ left: false, right: false, jump: false, earth: false }),
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null);
   const [level, setLevel] = useState(0),
@@ -64,7 +66,8 @@ export default function Home() {
     [loaded, setLoaded] = useState(false),
     [assetError, setAssetError] = useState(false),
     [score, setScore] = useState(0),
-    [learned, setLearned] = useState<string[]>([]);
+    [learned, setLearned] = useState<string[]>([]),
+    [earthReady, setEarthReady] = useState(false);
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -106,7 +109,7 @@ export default function Home() {
     game.current.mode = m;
     if (m !== 'playing') stopVoice();
     setMode(m);
-    input.current = { left: false, right: false, jump: false };
+    input.current = { left: false, right: false, jump: false, earth: false };
   }, []);
   const chooseLevel = useCallback((n: number) => {
     game.current = createGame(n);
@@ -116,11 +119,12 @@ export default function Home() {
     setStars(0);
     setScore(0);
     setLearned([]);
+    setEarthReady(false);
     setNotice('');
     setQuizHint('');
     setQuizRound(0);
     setMapOpen(false);
-    input.current = { left: false, right: false, jump: false };
+    input.current = { left: false, right: false, jump: false, earth: false };
     stopVoice();
   }, []);
   useEffect(() => () => stopVoice(), []);
@@ -147,7 +151,12 @@ export default function Home() {
     const sprite = new window.Image();
     let active = true;
     sprite.onload = () => {
-      void Promise.all([loadNounArt(), loadSceneArt(), loadVietnamFoodArt()])
+      void Promise.all([
+        loadNounArt(),
+        loadSceneArt(),
+        loadVietnamFoodArt(),
+        loadEarthArt(),
+      ])
         .then(() => {
           if (active) setLoaded(true);
         })
@@ -164,6 +173,7 @@ export default function Home() {
       if (g.mode === 'playing') {
         updateGame(g, last ? (now - last) / 1000 : 1 / 60, input.current);
         input.current.jump = false;
+        input.current.earth = false;
         for (const e of g.events) {
           if (e.type === 'collect') {
             const l = String.fromCharCode(65 + g.level),
@@ -178,7 +188,7 @@ export default function Home() {
               e.index === 0
                 ? `${l} — Chữ hoa`
                 : e.index === 1
-                  ? `${l.toLowerCase()} — Chữ thường`
+                  ? `${l.toLowerCase()} — Chữ thường · HỆ THỔ ĐÃ MỞ!`
                   : `${w[0]} · ${w[1]}`,
             );
             say(phrase);
@@ -190,6 +200,10 @@ export default function Home() {
             }
             if (e.type === 'stomp') tone(560);
           } else if (e.type === 'jump') tone(310);
+          else if (e.type === 'earth') {
+            flash('HỆ THỔ · MON NÉM ĐÁ!');
+            tone(230);
+          } else if (e.type === 'earthHit') tone(120);
           else if (e.type === 'heal') {
             flash(`${e.food} · Hồi 1 tim ♥`);
             tone(880);
@@ -202,6 +216,7 @@ export default function Home() {
         }
         setHp(g.hp);
         setStars(g.stars);
+        setEarthReady(earthAbilityReady(g));
         setScore(g.score);
         setLearned((prev) =>
           prev.length === g.learned.length ? prev : [...g.learned],
@@ -233,6 +248,7 @@ export default function Home() {
           'KeyA',
           'KeyD',
           'KeyW',
+          'KeyF',
         ].includes(k)
       ) {
         e.preventDefault();
@@ -241,6 +257,7 @@ export default function Home() {
         if (k === 'ArrowRight' || k === 'KeyD') input.current.right = true;
         if ((k === 'Space' || k === 'ArrowUp' || k === 'KeyW') && !e.repeat)
           input.current.jump = true;
+        if (k === 'KeyF' && !e.repeat) input.current.earth = true;
       }
       if (
         k === 'Escape' &&
@@ -253,7 +270,7 @@ export default function Home() {
       if (['ArrowRight', 'KeyD'].includes(e.code)) input.current.right = false;
     };
     const blur = () => {
-      input.current = { left: false, right: false, jump: false };
+      input.current = { left: false, right: false, jump: false, earth: false };
       if (game.current.mode === 'playing') changeMode('paused');
     };
     window.addEventListener('keydown', onKey);
@@ -307,21 +324,21 @@ export default function Home() {
     say(`${letter} is for ${word[0]}`);
     tone(880);
   }
-  const touch = (key: 'left' | 'right' | 'jump') => ({
+  const touch = (key: 'left' | 'right' | 'jump' | 'earth') => ({
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
       if (game.current.mode === 'playing') input.current[key] = true;
     },
     onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (key !== 'jump') input.current[key] = false;
+      if (key !== 'jump' && key !== 'earth') input.current[key] = false;
       e.currentTarget.releasePointerCapture(e.pointerId);
     },
     onPointerCancel: () => {
       input.current[key] = false;
     },
     onLostPointerCapture: () => {
-      if (key !== 'jump') input.current[key] = false;
+      if (key !== 'jump' && key !== 'earth') input.current[key] = false;
     },
   });
   const alphabet = (
@@ -651,6 +668,25 @@ export default function Home() {
             </div>
             <span>{score} ĐIỂM</span>
             <button
+              className={`earth-button ${earthReady ? 'ready' : ''}`}
+              aria-label={
+                earthReady
+                  ? 'Ném đá hệ Thổ'
+                  : 'Thu thập chữ hoa và chữ thường để mở hệ Thổ'
+              }
+              disabled={!earthReady || mode !== 'playing'}
+              {...touch('earth')}
+            >
+              <Image
+                unoptimized
+                src="/abilities/earth-rock.webp"
+                alt=""
+                width={30}
+                height={30}
+              />
+              THỔ
+            </button>
+            <button
               className="jump-button"
               aria-label="Nhảy"
               {...touch('jump')}
@@ -673,7 +709,8 @@ export default function Home() {
             ))}
           </div>
           <div className="keyboard-note">
-            ← → di chuyển <span>·</span> Space nhảy <span>·</span> Esc tạm dừng
+            ← → di chuyển <span>·</span> Space nhảy <span>·</span> F ném đá{' '}
+            <span>·</span> Esc tạm dừng
           </div>
         </section>
         <aside className="lesson">

@@ -8,6 +8,7 @@ import {
 } from './enemy-traits';
 import { drawNounEnemy } from './noun-art';
 import { drawCloudArt, drawSceneArt } from './scene-art';
+import { drawEarthRock } from './earth-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -25,7 +26,16 @@ export type Platform = Rect & {
 };
 export type Mode = 'ready' | 'playing' | 'paused' | 'quiz' | 'won' | 'lost';
 export type GameEvent = {
-  type: 'collect' | 'hurt' | 'stomp' | 'quiz' | 'encounter' | 'jump' | 'heal';
+  type:
+    | 'collect'
+    | 'hurt'
+    | 'stomp'
+    | 'quiz'
+    | 'encounter'
+    | 'jump'
+    | 'heal'
+    | 'earth'
+    | 'earthHit';
   food?: string;
   index?: number;
   noun?: Noun;
@@ -99,6 +109,8 @@ export type Game = {
     direction: number;
   };
   shots: (Rect & { vx: number; vy: number; life: number; noun: Noun })[];
+  earthShots: (Rect & { vx: number; vy: number; life: number; spin: number })[];
+  earthCooldown: number;
   particles: Particle[];
   checkpoint: number;
   jumpBuffer: number;
@@ -340,6 +352,8 @@ export function createGame(level = 0): Game {
       direction: -1,
     },
     shots: [],
+    earthShots: [],
+    earthCooldown: 0,
     particles: [],
     checkpoint: 60,
     jumpBuffer: 0,
@@ -347,6 +361,30 @@ export function createGame(level = 0): Game {
     shake: 0,
     events: [],
   };
+}
+
+export function earthAbilityReady(g: Game) {
+  return Boolean(g.pickups[0]?.got && g.pickups[1]?.got);
+}
+
+export function activateEarthSkill(g: Game) {
+  if (g.mode !== 'playing' || !earthAbilityReady(g) || g.earthCooldown > 0)
+    return false;
+  const direction = g.player.facing || 1;
+  g.earthShots.push({
+    x: g.player.x + (direction > 0 ? g.player.w - 2 : -30),
+    y: g.player.y + 15,
+    w: 34,
+    h: 34,
+    vx: direction * 430,
+    vy: -55,
+    life: 2.2,
+    spin: 0,
+  });
+  g.earthCooldown = 0.72;
+  g.events.push({ type: 'earth' });
+  burst(g, g.player.x + 21 + direction * 22, g.player.y + 30, '#d9a441', 9);
+  return true;
 }
 export function overlaps(a: Rect, b: Rect) {
   return (
@@ -394,7 +432,7 @@ export function hurt(g: Game, fall = false) {
 export function updateGame(
   g: Game,
   dt: number,
-  input: { left: boolean; right: boolean; jump: boolean },
+  input: { left: boolean; right: boolean; jump: boolean; earth: boolean },
 ) {
   if (g.mode !== 'playing') return;
   dt = Math.min(Math.max(dt, 0), 1 / 30);
@@ -402,6 +440,8 @@ export function updateGame(
   g.events = [];
   const p = g.player;
   g.shake = Math.max(0, g.shake - dt);
+  g.earthCooldown = Math.max(0, g.earthCooldown - dt);
+  if (input.earth) activateEarthSkill(g);
   p.invincible = Math.max(0, p.invincible - dt);
   p.landing = Math.max(0, p.landing - dt);
   g.comboTime = Math.max(0, g.comboTime - dt);
@@ -688,6 +728,42 @@ export function updateGame(
   g.shots = g.shots.filter(
     (s) =>
       s.life > 0 && s.x > 0 && s.x < g.worldWidth && s.y > 0 && s.y < HEIGHT,
+  );
+  for (const rock of g.earthShots) {
+    rock.x += rock.vx * dt;
+    rock.y += rock.vy * dt;
+    rock.vy += 115 * dt;
+    rock.spin += Math.sign(rock.vx) * dt * 9;
+    rock.life -= dt;
+    for (const e of g.enemies) {
+      if (!e.dead && overlaps(rock, e)) {
+        e.dead = true;
+        e.defeatedAt = g.time;
+        rock.life = 0;
+        g.score += 70;
+        g.shake = 0.1;
+        burst(g, e.x + e.w / 2, e.y + e.h / 2, '#e0b04e', 18);
+        learn(g, e.noun, 'stomp');
+        g.events.push({ type: 'earthHit', noun: e.noun });
+        break;
+      }
+    }
+    if (rock.life > 0 && b.hp > 0 && overlaps(rock, b) && b.cooldown <= 0) {
+      b.hp--;
+      b.cooldown = 0.62;
+      rock.life = 0;
+      g.score += 150;
+      g.shake = 0.15;
+      burst(g, b.x + b.w / 2, b.y + 45, '#f2bd42', 22);
+      g.events.push({ type: 'earthHit' });
+      if (b.hp === 0) {
+        g.shots = [];
+        b.dash = 0;
+      }
+    }
+  }
+  g.earthShots = g.earthShots.filter(
+    (rock) => rock.life > 0 && rock.x > -60 && rock.x < g.worldWidth + 60,
   );
   if (b.hp > 0 && overlaps(p, b)) {
     if (p.vy > 0 && oldBottom < b.y + 25 && b.cooldown <= 0) {
@@ -1074,6 +1150,15 @@ export function drawGame(
     ctx.fillStyle = '#9d392d';
     ctx.fillText(shot.noun[0], x + shot.w / 2, shot.y + 15);
     ctx.restore();
+  }
+  for (const rock of g.earthShots) {
+    const x = rock.x - cam + rock.w / 2;
+    if (!drawEarthRock(ctx, x, rock.y + rock.h / 2, 45, rock.spin)) {
+      ctx.fillStyle = '#9b6a36';
+      ctx.beginPath();
+      ctx.arc(x, rock.y + 17, 16, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   const exit = g.worldWidth - 90;
   rect(exit - cam, 410, 12, 140, '#537853');
