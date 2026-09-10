@@ -1334,12 +1334,12 @@ export function drawGame(
   const p = g.player,
     px = p.x - cam,
     heroVisualSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72,
-    wendySize = heroVisualSize / 4,
+    wendySize = heroVisualSize * 0.75,
     wendyX = Math.max(
       wendySize / 2 + 4,
       Math.min(
         WIDTH - wendySize / 2 - 4,
-        px + 21 - p.facing * (heroVisualSize * 0.5 + 20),
+        px + 21 - p.facing * (heroVisualSize * 0.8 + 42),
       ),
     ),
     wendyY = p.y + 5 + Math.sin(t * 3.2) * 7;
