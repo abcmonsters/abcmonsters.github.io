@@ -3,6 +3,7 @@ import { loadNounArt, nounArtPath } from './noun-art';
 import { loadSceneArt } from './scene-art';
 import { loadEarthArt } from './earth-art';
 import { loadElementArt } from './element-art';
+import { loadWendyArt } from './wendy-art';
 import {
   CHARACTERS,
   loadCharacterArt,
@@ -191,6 +192,7 @@ export default function Home() {
         loadEarthArt(),
         loadCharacterArt(),
         loadElementArt(),
+        loadWendyArt(),
       ])
         .then(() => {
           if (active) setLoaded(true);

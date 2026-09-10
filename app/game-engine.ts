@@ -11,6 +11,7 @@ import { drawCloudArt, drawSceneArt } from './scene-art';
 import { drawEarthRock } from './earth-art';
 import { drawCharacterArt, type CharacterId } from './character-art';
 import { drawElementProjectile } from './element-art';
+import { drawWendy } from './wendy-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -123,6 +124,9 @@ export type Game = {
     hero: CharacterId;
   })[];
   earthCooldown: number;
+  wendyMessage: string;
+  wendyMessageUntil: number;
+  wendyNextHint: number;
   particles: Particle[];
   checkpoint: number;
   jumpBuffer: number;
@@ -368,6 +372,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     shots: [],
     earthShots: [],
     earthCooldown: 0,
+    wendyMessage: 'Wendy báo danh! Tớ bay, cậu chạy nhé!',
+    wendyMessageUntil: 3.8,
+    wendyNextHint: 8,
     particles: [],
     checkpoint: 60,
     jumpBuffer: 0,
@@ -375,6 +382,12 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     shake: 0,
     events: [],
   };
+}
+
+function wendySay(g: Game, message: string, duration = 2.5) {
+  g.wendyMessage = message;
+  g.wendyMessageUntil = g.time + duration;
+  g.wendyNextHint = Math.max(g.wendyNextHint, g.time + duration + 4);
 }
 
 export function earthAbilityReady(g: Game) {
@@ -412,6 +425,16 @@ export function activateEarthSkill(g: Game) {
   });
   g.earthCooldown = 0.72;
   g.events.push({ type: 'earth', hero: g.hero });
+  wendySay(
+    g,
+    g.hero === 'mori'
+      ? 'Củi lên trời! Coi chừng rơi nha!'
+      : g.hero === 'rio'
+        ? 'Nước tới đây—khỏi cần ô!'
+        : g.hero === 'sol'
+          ? 'Phía sau nóng lắm đó!'
+          : 'Đá bay! Enemy né không kịp đâu!',
+  );
   burst(
     g,
     vertical ? g.player.x + 21 : g.player.x + 21 + Math.sign(velocityX) * 22,
@@ -451,6 +474,11 @@ export function hurt(g: Game, fall = false) {
   g.combo = 0;
   g.shake = 0.25;
   g.events.push({ type: 'hurt' });
+  wendySay(
+    g,
+    fall ? 'Ơ kìa, đất ở dưới mà!' : 'Tim của cậu đau, tớ vẫn ổn!',
+    2.8,
+  );
   g.player.invincible = 1.7;
   burst(g, g.player.x + 21, g.player.y + 25, '#ed8a76');
   if (fall) {
@@ -473,6 +501,22 @@ export function updateGame(
   dt = Math.min(Math.max(dt, 0), 1 / 30);
   g.time += dt;
   g.events = [];
+  if (g.time >= g.wendyNextHint && g.time >= g.wendyMessageUntil) {
+    const nearbyEnemy = g.enemies.some(
+      (enemy) => !enemy.dead && Math.abs(enemy.x - g.player.x) < 260,
+    );
+    wendySay(
+      g,
+      earthAbilityReady(g)
+        ? 'Nút kỹ năng sáng rồi—bấm F!'
+        : nearbyEnemy
+          ? 'Enemy tới! Nhảy đầu hoặc né lẹ!'
+          : g.stars < 2
+            ? 'Chữ đang trốn phía trước kìa!'
+            : 'Cứ tiến lên! Tớ bay nên không mỏi.',
+      2.8,
+    );
+  }
   const p = g.player;
   g.shake = Math.max(0, g.shake - dt);
   g.earthCooldown = Math.max(0, g.earthCooldown - dt);
@@ -562,6 +606,14 @@ export function updateGame(
       g.score += 100;
       burst(g, c.x, c.y, '#f9d656', 16);
       g.events.push({ type: 'collect', index });
+      wendySay(
+        g,
+        index === 0
+          ? 'Chữ hoa bắt được rồi!'
+          : index === 1
+            ? 'Chữ thường đủ bộ—mở phép!'
+            : 'Ngôi sao này sáng hơn tớ đó!',
+      );
     }
   });
   for (const food of g.foods) {
@@ -571,6 +623,7 @@ export function updateGame(
       g.score += 30;
       burst(g, food.x + 17, food.y + 17, '#b6ef8b', 14);
       g.events.push({ type: 'heal', food: food.name });
+      wendySay(g, `${food.name} ngon quá—tim đầy lên!`);
     }
   }
   for (const e of g.enemies) {
@@ -705,6 +758,7 @@ export function updateGame(
         g.score += 50 * Math.min(g.combo, 5);
         burst(g, e.x + 24, e.y + 20, '#d5ef75', 14);
         learn(g, e.noun, 'stomp');
+        wendySay(g, 'Bẹp! Cú nhảy đẹp đó!');
       } else hurt(g);
     }
   }
@@ -788,6 +842,9 @@ export function updateGame(
           e.dead = true;
           e.defeatedAt = g.time;
           learn(g, e.noun, 'stomp');
+          wendySay(g, `${e.noun[0]} hết đường chạy nhé!`);
+        } else {
+          wendySay(g, `Trúng rồi! Còn ${e.rockHp} đòn nữa!`, 1.7);
         }
         g.events.push({ type: 'earthHit', noun: e.noun });
         break;
@@ -1275,7 +1332,18 @@ export function drawGame(
     }
   }
   const p = g.player,
-    px = p.x - cam;
+    px = p.x - cam,
+    heroVisualSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72,
+    wendySize = heroVisualSize / 4,
+    wendyX = Math.max(
+      wendySize / 2 + 4,
+      Math.min(
+        WIDTH - wendySize / 2 - 4,
+        px + 21 - p.facing * (heroVisualSize * 0.5 + 20),
+      ),
+    ),
+    wendyY = p.y + 5 + Math.sin(t * 3.2) * 7;
+  drawWendy(ctx, wendyX, wendyY, wendySize, t);
   ctx.fillStyle = '#20372d25';
   ctx.beginPath();
   ctx.ellipse(px + 21, Math.min(551, p.y + p.h + 7), 24, 5, 0, 0, Math.PI * 2);
@@ -1323,8 +1391,7 @@ export function drawGame(
         speaking,
       });
     } else {
-      const heroSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72;
-      drawCharacterArt(ctx, g.hero, heroSize, animationTime, {
+      drawCharacterArt(ctx, g.hero, heroVisualSize, animationTime, {
         speed: p.vx,
         grounded: p.grounded,
         vy: p.vy,
@@ -1335,6 +1402,49 @@ export function drawGame(
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+  if (g.mode === 'playing' && g.time < g.wendyMessageUntil) {
+    const words = g.wendyMessage.split(' '),
+      lines: string[] = [];
+    let line = '';
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (next.length > 25 && line) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    const visibleLines = lines.slice(0, 3),
+      bubbleWidth = 178,
+      bubbleHeight = 15 + visibleLines.length * 15,
+      bubbleX = Math.max(7, Math.min(WIDTH - bubbleWidth - 7, wendyX - 25)),
+      bubbleY = Math.max(104, wendyY - bubbleHeight - 18);
+    ctx.save();
+    ctx.fillStyle = '#fffbe9ed';
+    ctx.strokeStyle = '#bd7a42';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 9);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(wendyX, bubbleY + bubbleHeight);
+    ctx.lineTo(wendyX + 7, bubbleY + bubbleHeight + 9);
+    ctx.lineTo(wendyX + 13, bubbleY + bubbleHeight);
+    ctx.fill();
+    ctx.stroke();
+    visibleLines.forEach((messageLine, index) =>
+      text(
+        messageLine,
+        bubbleX + bubbleWidth / 2,
+        bubbleY + 17 + index * 15,
+        10,
+        '#5d3d2e',
+        'Arial',
+      ),
+    );
+    ctx.restore();
+  }
   for (const q of g.particles) {
     ctx.globalAlpha = q.life / q.maxLife;
     rect(q.x - cam, q.y, q.size, q.size, q.color);
