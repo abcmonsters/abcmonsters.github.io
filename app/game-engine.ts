@@ -127,6 +127,8 @@ export type Game = {
   wendyMessage: string;
   wendyMessageUntil: number;
   wendyNextHint: number;
+  wendyX: number;
+  wendyY: number;
   particles: Particle[];
   checkpoint: number;
   jumpBuffer: number;
@@ -375,6 +377,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     wendyMessage: 'Wendy báo danh! Tớ bay, cậu chạy nhé!',
     wendyMessageUntil: 3.8,
     wendyNextHint: 8,
+    wendyX: 72,
+    wendyY: 245,
     particles: [],
     checkpoint: 60,
     jumpBuffer: 0,
@@ -388,6 +392,44 @@ function wendySay(g: Game, message: string, duration = 2.5) {
   g.wendyMessage = message;
   g.wendyMessageUntil = g.time + duration;
   g.wendyNextHint = Math.max(g.wendyNextHint, g.time + duration + 4);
+}
+
+function wendyObjective(g: Game) {
+  if (g.player.x > g.worldWidth - 720 && g.boss.hp > 0)
+    return {
+      x: g.boss.x + g.boss.w / 2,
+      y: g.boss.y,
+      message: `Trùm chữ ${String.fromCharCode(65 + g.level)} ở đây—tấn công nào!`,
+    };
+  const pickup = g.pickups.find(
+    (item) => !item.got && Math.abs(item.x - g.player.x) < 950,
+  );
+  if (pickup && Math.floor(g.time / 12) % 2 === 0)
+    return {
+      x: pickup.x,
+      y: pickup.y,
+      message: 'Chữ cái ở đây! Lấy đủ chữ thường và chữ hoa nhé!',
+    };
+  const enemy = g.enemies
+    .filter((item) => !item.dead)
+    .sort((a, b) => Math.abs(a.x - g.player.x) - Math.abs(b.x - g.player.x))[0];
+  if (enemy)
+    return {
+      x: enemy.x + enemy.w / 2,
+      y: enemy.y,
+      message: `${enemy.noun[0]} ở đây! Mau tiêu diệt nó!`,
+    };
+  if (pickup)
+    return {
+      x: pickup.x,
+      y: pickup.y,
+      message: 'Bay theo tớ—chữ cái đang chờ phía trước!',
+    };
+  return {
+    x: g.boss.x + g.boss.w / 2,
+    y: g.boss.y,
+    message: `Đến trùm chữ ${String.fromCharCode(65 + g.level)} thôi!`,
+  };
 }
 
 export function earthAbilityReady(g: Game) {
@@ -502,18 +544,12 @@ export function updateGame(
   g.time += dt;
   g.events = [];
   if (g.time >= g.wendyNextHint && g.time >= g.wendyMessageUntil) {
-    const nearbyEnemy = g.enemies.some(
-      (enemy) => !enemy.dead && Math.abs(enemy.x - g.player.x) < 260,
-    );
+    const objective = wendyObjective(g);
     wendySay(
       g,
       earthAbilityReady(g)
-        ? 'Nút kỹ năng sáng rồi—bấm F!'
-        : nearbyEnemy
-          ? 'Enemy tới! Nhảy đầu hoặc né lẹ!'
-          : g.stars < 2
-            ? 'Chữ đang trốn phía trước kìa!'
-            : 'Cứ tiến lên! Tớ bay nên không mỏi.',
+        ? 'Kỹ năng đã sáng—bấm F tấn công!'
+        : objective.message,
       2.8,
     );
   }
@@ -906,6 +942,17 @@ export function updateGame(
     Math.min(g.worldWidth - WIDTH, p.x - WIDTH * 0.34),
   );
   g.camera += (targetCamera - g.camera) * Math.min(1, dt * 9);
+  const guidePhase = g.time % 12 < 5.5,
+    objective = wendyObjective(g),
+    desiredX = guidePhase
+      ? Math.max(35, Math.min(WIDTH - 35, objective.x - g.camera))
+      : 72 + Math.sin(g.time * 0.46) * 38,
+    desiredY = guidePhase
+      ? Math.max(135, Math.min(465, objective.y - 58))
+      : 215 + Math.sin(g.time * 0.72 + 1.1) * 62,
+    follow = 1 - Math.exp(-dt * (guidePhase ? 2.4 : 1.7));
+  g.wendyX += (desiredX - g.wendyX) * follow;
+  g.wendyY += (desiredY - g.wendyY) * follow;
 }
 export function quizChoices(level: number) {
   return [level, (level + 7) % 26, (level + 17) % 26].sort(
@@ -1335,25 +1382,11 @@ export function drawGame(
     px = p.x - cam,
     heroVisualSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72,
     wendySize = heroVisualSize * 0.5,
-    wendyDistance =
-      heroVisualSize * 0.78 +
-      45 +
-      Math.sin(t * 0.62) * 15 +
-      Math.sin(t * 1.37 + 0.8) * 6,
     wendyX = Math.max(
       wendySize / 2 + 4,
-      Math.min(
-        WIDTH - wendySize / 2 - 4,
-        px + 21 - wendyDistance + Math.sin(t * 0.91 + 1.7) * 8,
-      ),
+      Math.min(WIDTH - wendySize / 2 - 4, g.wendyX),
     ),
-    wendyY = Math.max(
-      125,
-      Math.min(
-        500,
-        p.y - 8 + Math.sin(t * 1.35 + 0.5) * 16 + Math.sin(t * 2.6) * 5,
-      ),
-    );
+    wendyY = g.wendyY + Math.sin(t * 2.6) * 4;
   drawWendy(
     ctx,
     wendyX,
