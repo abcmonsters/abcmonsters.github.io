@@ -1323,7 +1323,7 @@ export function drawGame(
         speaking,
       });
     } else {
-      const heroSize = g.hero === 'rio' ? 96 : g.hero === 'sol' ? 60 : 72;
+      const heroSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72;
       drawCharacterArt(ctx, g.hero, heroSize, animationTime, {
         speed: p.vx,
         grounded: p.grounded,
