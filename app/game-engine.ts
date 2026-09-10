@@ -384,23 +384,41 @@ export function earthAbilityReady(g: Game) {
 export function activateEarthSkill(g: Game) {
   if (g.mode !== 'playing' || !earthAbilityReady(g) || g.earthCooldown > 0)
     return false;
-  const direction = g.player.facing || 1;
-  const arcing = g.hero !== 'mon';
+  const direction = g.player.facing || 1,
+    vertical = g.hero === 'mori',
+    backward = g.hero === 'sol',
+    arcing = g.hero === 'rio',
+    largeProjectile = g.hero !== 'mon',
+    velocityX = vertical
+      ? 0
+      : backward
+        ? -direction * 430
+        : direction * (arcing ? 285 : 430),
+    velocityY = vertical ? -590 : arcing ? -430 : 0;
   g.earthShots.push({
-    x: g.player.x + (direction > 0 ? g.player.w - 2 : -18),
-    y: g.player.y + (arcing ? 8 : 24),
-    w: arcing ? 18 : 12,
-    h: arcing ? 18 : 12,
-    vx: direction * (arcing ? 285 : 430),
-    vy: arcing ? -430 : 0,
+    x: vertical
+      ? g.player.x + g.player.w / 2 - 9
+      : g.player.x +
+        (velocityX > 0 ? g.player.w - 2 : -(largeProjectile ? 18 : 12)),
+    y: g.player.y + (vertical || arcing ? 7 : 24),
+    w: largeProjectile ? 18 : 12,
+    h: largeProjectile ? 18 : 12,
+    vx: velocityX,
+    vy: velocityY,
     life: 2.2,
-    spin: 0,
-    gravity: arcing ? 980 : 0,
+    spin: backward && velocityX < 0 ? Math.PI : 0,
+    gravity: vertical || arcing ? 980 : 0,
     hero: g.hero,
   });
   g.earthCooldown = 0.72;
   g.events.push({ type: 'earth', hero: g.hero });
-  burst(g, g.player.x + 21 + direction * 22, g.player.y + 30, '#d9a441', 9);
+  burst(
+    g,
+    vertical ? g.player.x + 21 : g.player.x + 21 + Math.sign(velocityX) * 22,
+    vertical ? g.player.y + 5 : g.player.y + 30,
+    '#d9a441',
+    9,
+  );
   return true;
 }
 export function overlaps(a: Rect, b: Rect) {
@@ -750,7 +768,8 @@ export function updateGame(
     rock.x += rock.vx * dt;
     rock.y += rock.vy * dt;
     rock.vy += rock.gravity * dt;
-    rock.spin += Math.sign(rock.vx) * dt * 9;
+    if (rock.hero !== 'sol')
+      rock.spin += (rock.hero === 'mori' ? 1 : Math.sign(rock.vx)) * dt * 9;
     rock.life -= dt;
     for (const e of g.enemies) {
       if (!e.dead && overlaps(rock, e)) {
