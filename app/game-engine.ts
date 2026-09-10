@@ -906,11 +906,11 @@ export function drawGame(
       food.y + 17 + Math.sin(t * 3) * 3,
       food.kind,
     );
-    text('+1 ♥', food.x - cam + 17, food.y - 7, 12, '#38794c', 'Arial');
+    text('+1 ♥', food.x - cam + 17, food.y - 13, 12, '#38794c', 'Arial');
     text(
       food.name,
       food.x - cam + 17,
-      food.y + 47,
+      food.y + 52,
       10,
       night ? '#f5edcf' : '#3b5e43',
       'Arial',

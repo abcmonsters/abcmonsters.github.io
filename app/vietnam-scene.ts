@@ -250,6 +250,18 @@ export function drawVietnamFood(
   y: number,
   kind: number,
 ) {
+  const image = foodArt[kind];
+  if (image?.complete && image.naturalWidth) {
+    c.save();
+    c.translate(x, y);
+    c.imageSmoothingEnabled = true;
+    c.shadowColor = '#173b3270';
+    c.shadowBlur = 5;
+    c.shadowOffsetY = 3;
+    c.drawImage(image, -29, -29, 58, 58);
+    c.restore();
+    return;
+  }
   c.save();
   c.translate(x, y);
   const box = (a: number, b: number, w: number, h: number, color: string) => {
@@ -300,4 +312,33 @@ export function drawVietnamFood(
     box(3, 2, 7, 3, '#bd784a');
   }
   c.restore();
+}
+const FOOD_ART_PATHS = [
+  '/food-v1/pho.webp?v=painted-food-1',
+  '/food-v1/banh-mi.webp?v=painted-food-1',
+  '/food-v1/banh-chung.webp?v=painted-food-1',
+  '/food-v1/goi-cuon.webp?v=painted-food-1',
+  '/food-v1/bun-bo-hue.webp?v=painted-food-1',
+  '/food-v1/banh-xeo.webp?v=painted-food-1',
+];
+const foodArt: HTMLImageElement[] = [];
+let foodArtLoading: Promise<void> | undefined;
+
+export function loadVietnamFoodArt() {
+  foodArtLoading ??= Promise.all(
+    FOOD_ART_PATHS.map(
+      (src, index) =>
+        new Promise<void>((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => {
+            foodArt[index] = image;
+            resolve();
+          };
+          image.onerror = () =>
+            reject(new Error(`Cannot load food art ${src}`));
+          image.src = src;
+        }),
+    ),
+  ).then(() => undefined);
+  return foodArtLoading;
 }
