@@ -1347,14 +1347,15 @@ export function drawGame(
         px + 21 - p.facing * wendyDistance + Math.sin(t * 0.91 + 1.7) * 10,
       ),
     ),
-    wendyY = Math.max(
-      125,
-      Math.min(
-        515,
-        p.y - 2 + Math.sin(t * 1.7) * 18 + Math.sin(t * 3.1 + 1.2) * 5,
-      ),
-    );
-  drawWendy(ctx, wendyX, wendyY, wendySize, t);
+    wendyY = 205 + Math.sin(t * 0.78 + 0.5) * 72 + Math.sin(t * 1.83) * 18;
+  drawWendy(
+    ctx,
+    wendyX,
+    wendyY,
+    wendySize,
+    t,
+    g.mode === 'playing' && g.time < g.wendyMessageUntil,
+  );
   ctx.fillStyle = '#20372d25';
   ctx.beginPath();
   ctx.ellipse(px + 21, Math.min(551, p.y + p.h + 7), 24, 5, 0, 0, Math.PI * 2);
@@ -1428,18 +1429,52 @@ export function drawGame(
     const visibleLines = lines.slice(0, 3),
       bubbleWidth = 178,
       bubbleHeight = 15 + visibleLines.length * 15,
-      bubbleOnRight = wendyX < WIDTH / 2,
-      preferredBubbleX = bubbleOnRight
-        ? wendyX + wendySize / 2 + 18
-        : wendyX - wendySize / 2 - bubbleWidth - 18,
-      bubbleX = Math.max(
-        7,
-        Math.min(WIDTH - bubbleWidth - 7, preferredBubbleX),
-      ),
-      bubbleY = Math.max(
-        104,
-        Math.min(520 - bubbleHeight, wendyY - bubbleHeight / 2),
-      ),
+      wendyLeft = wendyX - wendySize / 2,
+      wendyRight = wendyX + wendySize / 2,
+      heroLeft = px - heroVisualSize * 0.35,
+      heroRight = px + heroVisualSize * 0.75,
+      heroTop = p.y - heroVisualSize * 0.15,
+      heroBottom = p.y + p.h + 8,
+      candidates = [
+        { x: wendyLeft - bubbleWidth - 18, y: wendyY - bubbleHeight / 2 },
+        { x: wendyRight + 18, y: wendyY - bubbleHeight / 2 },
+        {
+          x: wendyX - bubbleWidth / 2,
+          y: wendyY - wendySize / 2 - bubbleHeight - 16,
+        },
+        {
+          x: wendyX - bubbleWidth / 2,
+          y: wendyY + wendySize / 2 + 16,
+        },
+      ],
+      scored = candidates.map((candidate) => {
+        const x = Math.max(7, Math.min(WIDTH - bubbleWidth - 7, candidate.x)),
+          y = Math.max(104, Math.min(520 - bubbleHeight, candidate.y)),
+          heroOverlap =
+            Math.max(
+              0,
+              Math.min(x + bubbleWidth, heroRight) - Math.max(x, heroLeft),
+            ) *
+            Math.max(
+              0,
+              Math.min(y + bubbleHeight, heroBottom) - Math.max(y, heroTop),
+            ),
+          wendyOverlap =
+            Math.max(
+              0,
+              Math.min(x + bubbleWidth, wendyRight) - Math.max(x, wendyLeft),
+            ) *
+            Math.max(
+              0,
+              Math.min(y + bubbleHeight, wendyY + wendySize / 2) -
+                Math.max(y, wendyY - wendySize / 2),
+            );
+        return { x, y, score: heroOverlap * 4 + wendyOverlap * 8 };
+      }),
+      bestBubble = scored.sort((a, b) => a.score - b.score)[0],
+      bubbleX = bestBubble.x,
+      bubbleY = bestBubble.y,
+      bubbleOnRight = bubbleX > wendyX,
       tailY = Math.max(
         bubbleY + 10,
         Math.min(bubbleY + bubbleHeight - 10, wendyY),
