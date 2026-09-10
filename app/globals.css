@@ -457,6 +457,21 @@ a {
   filter: none;
   animation: earth-ready 1.15s ease-in-out infinite alternate;
 }
+.controls .earth-button.element-mori {
+  background: #3f7040;
+  border-color: #76a85b;
+  border-bottom-color: #294b2c;
+}
+.controls .earth-button.element-rio {
+  background: #2878a8;
+  border-color: #60b9da;
+  border-bottom-color: #174e75;
+}
+.controls .earth-button.element-sol {
+  background: #a44635;
+  border-color: #e77b4b;
+  border-bottom-color: #6c2924;
+}
 .controls .earth-button:disabled {
   cursor: not-allowed;
 }

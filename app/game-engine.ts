@@ -10,6 +10,7 @@ import { drawNounEnemy } from './noun-art';
 import { drawCloudArt, drawSceneArt } from './scene-art';
 import { drawEarthRock } from './earth-art';
 import { drawCharacterArt, type CharacterId } from './character-art';
+import { drawElementProjectile } from './element-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -40,6 +41,7 @@ export type GameEvent = {
   food?: string;
   index?: number;
   noun?: Noun;
+  hero?: CharacterId;
 };
 export type Enemy = Rect & {
   rockHp: number;
@@ -112,7 +114,14 @@ export type Game = {
     direction: number;
   };
   shots: (Rect & { vx: number; vy: number; life: number; noun: Noun })[];
-  earthShots: (Rect & { vx: number; vy: number; life: number; spin: number })[];
+  earthShots: (Rect & {
+    vx: number;
+    vy: number;
+    life: number;
+    spin: number;
+    gravity: number;
+    hero: CharacterId;
+  })[];
   earthCooldown: number;
   particles: Particle[];
   checkpoint: number;
@@ -373,26 +382,24 @@ export function earthAbilityReady(g: Game) {
 }
 
 export function activateEarthSkill(g: Game) {
-  if (
-    g.mode !== 'playing' ||
-    g.hero !== 'mon' ||
-    !earthAbilityReady(g) ||
-    g.earthCooldown > 0
-  )
+  if (g.mode !== 'playing' || !earthAbilityReady(g) || g.earthCooldown > 0)
     return false;
   const direction = g.player.facing || 1;
+  const arcing = g.hero !== 'mon';
   g.earthShots.push({
-    x: g.player.x + (direction > 0 ? g.player.w - 2 : -12),
-    y: g.player.y + 24,
-    w: 12,
-    h: 12,
-    vx: direction * 430,
-    vy: -55,
+    x: g.player.x + (direction > 0 ? g.player.w - 2 : -18),
+    y: g.player.y + (arcing ? 8 : 24),
+    w: arcing ? 18 : 12,
+    h: arcing ? 18 : 12,
+    vx: direction * (arcing ? 285 : 430),
+    vy: arcing ? -430 : 0,
     life: 2.2,
     spin: 0,
+    gravity: arcing ? 980 : 0,
+    hero: g.hero,
   });
   g.earthCooldown = 0.72;
-  g.events.push({ type: 'earth' });
+  g.events.push({ type: 'earth', hero: g.hero });
   burst(g, g.player.x + 21 + direction * 22, g.player.y + 30, '#d9a441', 9);
   return true;
 }
@@ -742,7 +749,7 @@ export function updateGame(
   for (const rock of g.earthShots) {
     rock.x += rock.vx * dt;
     rock.y += rock.vy * dt;
-    rock.vy += 115 * dt;
+    rock.vy += rock.gravity * dt;
     rock.spin += Math.sign(rock.vx) * dt * 9;
     rock.life -= dt;
     for (const e of g.enemies) {
@@ -780,9 +787,22 @@ export function updateGame(
         b.dash = 0;
       }
     }
+    if (
+      rock.life > 0 &&
+      rock.hero !== 'mon' &&
+      rock.vy > 0 &&
+      g.platforms.some((platform) => overlaps(rock, platform))
+    ) {
+      rock.life = 0;
+      burst(g, rock.x + rock.w / 2, rock.y + rock.h / 2, '#d8c27a', 6);
+    }
   }
   g.earthShots = g.earthShots.filter(
-    (rock) => rock.life > 0 && rock.x > -60 && rock.x < g.worldWidth + 60,
+    (rock) =>
+      rock.life > 0 &&
+      rock.x > -60 &&
+      rock.x < g.worldWidth + 60 &&
+      rock.y < HEIGHT + 50,
   );
   if (b.hp > 0 && overlaps(p, b)) {
     if (p.vy > 0 && oldBottom < b.y + 25 && b.cooldown <= 0) {
@@ -1182,7 +1202,19 @@ export function drawGame(
   }
   for (const rock of g.earthShots) {
     const x = rock.x - cam + rock.w / 2;
-    if (!drawEarthRock(ctx, x, rock.y + rock.h / 2, 11.25, rock.spin)) {
+    const size = rock.hero === 'mon' ? 11.25 : 23;
+    if (
+      !(rock.hero === 'mon'
+        ? drawEarthRock(ctx, x, rock.y + rock.h / 2, size, rock.spin)
+        : drawElementProjectile(
+            ctx,
+            rock.hero,
+            x,
+            rock.y + rock.h / 2,
+            size,
+            rock.spin,
+          ))
+    ) {
       ctx.fillStyle = '#9b6a36';
       ctx.beginPath();
       ctx.arc(x, rock.y + rock.h / 2, 5.5, 0, Math.PI * 2);
@@ -1272,7 +1304,7 @@ export function drawGame(
         speaking,
       });
     } else {
-      const heroSize = g.hero === 'rio' ? 88 : g.hero === 'sol' ? 66 : 72;
+      const heroSize = g.hero === 'rio' ? 96 : g.hero === 'sol' ? 60 : 72;
       drawCharacterArt(ctx, g.hero, heroSize, animationTime, {
         speed: p.vx,
         grounded: p.grounded,

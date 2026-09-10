@@ -2,6 +2,7 @@
 import { loadNounArt, nounArtPath } from './noun-art';
 import { loadSceneArt } from './scene-art';
 import { loadEarthArt } from './earth-art';
+import { loadElementArt } from './element-art';
 import {
   CHARACTERS,
   loadCharacterArt,
@@ -77,7 +78,31 @@ export default function Home() {
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
-    world = WORLDS[level];
+    world = WORLDS[level],
+    heroInfo =
+      CHARACTERS.find((character) => character.id === hero) ?? CHARACTERS[0],
+    skillInfo = {
+      mon: {
+        label: 'THỔ',
+        image: '/abilities/earth-rock.webp',
+        action: 'Ném đá',
+      },
+      mori: {
+        label: 'MỘC',
+        image: '/abilities/mori-log.webp',
+        action: 'Quăng khúc cây',
+      },
+      rio: {
+        label: 'THỦY',
+        image: '/abilities/rio-water.webp',
+        action: 'Phun nước',
+      },
+      sol: {
+        label: 'HỎA',
+        image: '/abilities/sol-fire.webp',
+        action: 'Ném lửa',
+      },
+    }[hero];
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
@@ -165,6 +190,7 @@ export default function Home() {
         loadVietnamFoodArt(),
         loadEarthArt(),
         loadCharacterArt(),
+        loadElementArt(),
       ])
         .then(() => {
           if (active) setLoaded(true);
@@ -210,7 +236,20 @@ export default function Home() {
             if (e.type === 'stomp') tone(560);
           } else if (e.type === 'jump') tone(310);
           else if (e.type === 'earth') {
-            flash('HỆ THỔ · MON NÉM ĐÁ!');
+            const character =
+              CHARACTERS.find((candidate) => candidate.id === e.hero) ??
+              CHARACTERS[0];
+            const action =
+              e.hero === 'mori'
+                ? 'QUĂNG KHÚC CÂY!'
+                : e.hero === 'rio'
+                  ? 'PHUN NƯỚC!'
+                  : e.hero === 'sol'
+                    ? 'NÉM LỬA!'
+                    : 'NÉM ĐÁ!';
+            flash(
+              `${character.name} · HỆ ${character.element.toUpperCase()} · ${action}`,
+            );
             tone(230);
           } else if (e.type === 'earthHit') tone(120);
           else if (e.type === 'heal') {
@@ -720,27 +759,25 @@ export default function Home() {
               </button>
             </div>
             <span>{score} ĐIỂM</span>
-            {hero === 'mon' && (
-              <button
-                className={`earth-button ${earthReady ? 'ready' : ''}`}
-                aria-label={
-                  earthReady
-                    ? 'Ném đá hệ Thổ'
-                    : 'Thu thập chữ hoa và chữ thường để mở hệ Thổ'
-                }
-                disabled={!earthReady || mode !== 'playing'}
-                {...touch('earth')}
-              >
-                <Image
-                  unoptimized
-                  src="/abilities/earth-rock.webp"
-                  alt=""
-                  width={30}
-                  height={30}
-                />
-                THỔ
-              </button>
-            )}
+            <button
+              className={`earth-button element-${hero} ${earthReady ? 'ready' : ''}`}
+              aria-label={
+                earthReady
+                  ? `${skillInfo.action} hệ ${heroInfo.element}`
+                  : `Thu thập chữ hoa và chữ thường để mở hệ ${heroInfo.element}`
+              }
+              disabled={!earthReady || mode !== 'playing'}
+              {...touch('earth')}
+            >
+              <Image
+                unoptimized
+                src={skillInfo.image}
+                alt=""
+                width={30}
+                height={30}
+              />
+              {skillInfo.label}
+            </button>
             <button
               className="jump-button"
               aria-label="Nhảy"
@@ -764,8 +801,8 @@ export default function Home() {
             ))}
           </div>
           <div className="keyboard-note">
-            ← → di chuyển <span>·</span> Space nhảy <span>·</span> F ném đá{' '}
-            <span>·</span> Esc tạm dừng
+            ← → di chuyển <span>·</span> Space nhảy <span>·</span> F dùng kỹ
+            năng <span>·</span> Esc tạm dừng
           </div>
         </section>
         <aside className="lesson">
