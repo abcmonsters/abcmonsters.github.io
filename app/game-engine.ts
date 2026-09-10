@@ -9,6 +9,7 @@ import {
 import { drawNounEnemy } from './noun-art';
 import { drawCloudArt, drawSceneArt } from './scene-art';
 import { drawEarthRock } from './earth-art';
+import { drawCharacterArt, type CharacterId } from './character-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -72,6 +73,7 @@ export type Particle = {
   size: number;
 };
 export type Game = {
+  hero: CharacterId;
   level: number;
   sky: boolean;
   mode: Mode;
@@ -119,7 +121,7 @@ export type Game = {
   shake: number;
   events: GameEvent[];
 };
-export function createGame(level = 0): Game {
+export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
   level = Math.max(0, Math.min(25, Math.floor(level)));
   const difficulty = level / 25,
     worldWidth = level === 0 ? 5600 : WORLD_WIDTH + Math.floor(level / 4) * 180,
@@ -309,6 +311,7 @@ export function createGame(level = 0): Game {
   const maxHp = 3 + Math.floor(level / 10);
   return {
     level,
+    hero,
     sky: level === 0,
     mode: 'ready',
     time: 0,
@@ -370,7 +373,12 @@ export function earthAbilityReady(g: Game) {
 }
 
 export function activateEarthSkill(g: Game) {
-  if (g.mode !== 'playing' || !earthAbilityReady(g) || g.earthCooldown > 0)
+  if (
+    g.mode !== 'playing' ||
+    g.hero !== 'mon' ||
+    !earthAbilityReady(g) ||
+    g.earthCooldown > 0
+  )
     return false;
   const direction = g.player.facing || 1;
   g.earthShots.push({
@@ -1251,17 +1259,21 @@ export function drawGame(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
     );
     ctx.scale(sx * p.facing, sy);
-    ctx.translate(-36, -65);
-    ctx.scale(72 / 1254, 72 / 1254);
-    drawMonSprite(ctx, sprite, animationTime, {
-      speed: p.vx,
-      grounded: p.grounded,
-      vy: p.vy,
-      hurt: p.invincible,
-      landing: p.landing,
-      stride: p.stride,
-      speaking,
-    });
+    if (g.hero === 'mon') {
+      ctx.translate(-36, -65);
+      ctx.scale(72 / 1254, 72 / 1254);
+      drawMonSprite(ctx, sprite, animationTime, {
+        speed: p.vx,
+        grounded: p.grounded,
+        vy: p.vy,
+        hurt: p.invincible,
+        landing: p.landing,
+        stride: p.stride,
+        speaking,
+      });
+    } else {
+      drawCharacterArt(ctx, g.hero, 72);
+    }
     ctx.restore();
   }
   ctx.globalAlpha = 1;

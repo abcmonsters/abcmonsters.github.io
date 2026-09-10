@@ -2,8 +2,12 @@
 import { loadNounArt, nounArtPath } from './noun-art';
 import { loadSceneArt } from './scene-art';
 import { loadEarthArt } from './earth-art';
+import {
+  CHARACTERS,
+  loadCharacterArt,
+  type CharacterId,
+} from './character-art';
 import { loadVietnamFoodArt } from './vietnam-scene';
-import MonPortrait from './mon-portrait';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -67,7 +71,8 @@ export default function Home() {
     [assetError, setAssetError] = useState(false),
     [score, setScore] = useState(0),
     [learned, setLearned] = useState<string[]>([]),
-    [earthReady, setEarthReady] = useState(false);
+    [earthReady, setEarthReady] = useState(false),
+    [hero, setHero] = useState<CharacterId>('mon');
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -111,22 +116,25 @@ export default function Home() {
     setMode(m);
     input.current = { left: false, right: false, jump: false, earth: false };
   }, []);
-  const chooseLevel = useCallback((n: number) => {
-    game.current = createGame(n);
-    setLevel(n);
-    setMode('ready');
-    setHp(3);
-    setStars(0);
-    setScore(0);
-    setLearned([]);
-    setEarthReady(false);
-    setNotice('');
-    setQuizHint('');
-    setQuizRound(0);
-    setMapOpen(false);
-    input.current = { left: false, right: false, jump: false, earth: false };
-    stopVoice();
-  }, []);
+  const chooseLevel = useCallback(
+    (n: number) => {
+      game.current = createGame(n, hero);
+      setLevel(n);
+      setMode('ready');
+      setHp(3);
+      setStars(0);
+      setScore(0);
+      setLearned([]);
+      setEarthReady(false);
+      setNotice('');
+      setQuizHint('');
+      setQuizRound(0);
+      setMapOpen(false);
+      input.current = { left: false, right: false, jump: false, earth: false };
+      stopVoice();
+    },
+    [hero],
+  );
   useEffect(() => () => stopVoice(), []);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -156,6 +164,7 @@ export default function Home() {
         loadSceneArt(),
         loadVietnamFoodArt(),
         loadEarthArt(),
+        loadCharacterArt(),
       ])
         .then(() => {
           if (active) setLoaded(true);
@@ -285,6 +294,7 @@ export default function Home() {
     };
   }, [changeMode]);
   function start() {
+    game.current.hero = hero;
     changeMode('playing');
     setQuizHint('');
     say(`${letter}. ${letter} is for ${word[0]}`);
@@ -293,7 +303,7 @@ export default function Home() {
       document.activeElement.blur();
   }
   function replay() {
-    game.current = createGame(level);
+    game.current = createGame(level, hero);
     setStars(0);
     setHp(3);
     setScore(0);
@@ -457,18 +467,35 @@ export default function Home() {
             )}
             {mode === 'ready' && (
               <div className="start-screen">
-                <span className="game-kicker">CÙNG MON KHÁM PHÁ</span>
+                <span className="game-kicker">CHỌN NGƯỜI BẠN ĐỒNG HÀNH</span>
                 <h2>
                   ALPHABET
                   <br />
                   <em>ADVENTURE</em>
                 </h2>
-                <div className="mon-intro">
-                  <span className="floating-letter letter-left">{letter}</span>
-                  <MonPortrait label="Mon vàng một mắt, chớp mắt và thở nhẹ" />
-                  <span className="floating-letter letter-right">
-                    {letter.toLowerCase()}
-                  </span>
+                <div className="character-picker" aria-label="Chọn nhân vật">
+                  {CHARACTERS.map((character) => (
+                    <button
+                      key={character.id}
+                      type="button"
+                      aria-pressed={hero === character.id}
+                      className={hero === character.id ? 'selected' : ''}
+                      onClick={() => {
+                        setHero(character.id);
+                        game.current.hero = character.id;
+                      }}
+                    >
+                      <Image
+                        unoptimized
+                        src={character.image}
+                        alt={character.name}
+                        width={58}
+                        height={58}
+                      />
+                      <b>{character.name}</b>
+                      <small>Hệ {character.element}</small>
+                    </button>
+                  ))}
                 </div>
                 <div className="level-pill">
                   {letter} is for {word[0]}
@@ -505,8 +532,24 @@ export default function Home() {
             {mode === 'paused' && (
               <div className="state-screen">
                 <span className="game-kicker">NGHỈ MỘT CHÚT NÀO</span>
-                <h2>Mon chờ bạn!</h2>
-                <MonPortrait className="state-mon" label="Mon" />
+                <h2>
+                  {CHARACTERS.find((character) => character.id === hero)?.name}{' '}
+                  chờ bạn!
+                </h2>
+                <Image
+                  unoptimized
+                  className="state-character"
+                  src={
+                    CHARACTERS.find((character) => character.id === hero)
+                      ?.image ?? '/mon-sprite.png'
+                  }
+                  alt={
+                    CHARACTERS.find((character) => character.id === hero)
+                      ?.name ?? 'Mon'
+                  }
+                  width={100}
+                  height={100}
+                />
                 <button className="primary-button" onClick={start}>
                   <Play size={18} />
                   Chơi tiếp
@@ -642,7 +685,17 @@ export default function Home() {
               <div className="state-screen">
                 <span className="game-kicker">MÌNH THỬ LẠI NHÉ</span>
                 <h2>Suýt được rồi!</h2>
-                <MonPortrait className="state-mon" label="Mon cổ vũ bạn" />
+                <Image
+                  unoptimized
+                  className="state-character"
+                  src={
+                    CHARACTERS.find((character) => character.id === hero)
+                      ?.image ?? '/mon-sprite.png'
+                  }
+                  alt={`${CHARACTERS.find((character) => character.id === hero)?.name ?? 'Mon'} cổ vũ bạn`}
+                  width={100}
+                  height={100}
+                />
                 <p>Canh lúc nhảy để vượt qua chướng ngại vật.</p>
                 <button className="primary-button" onClick={replay}>
                   <RotateCcw size={18} />
@@ -667,25 +720,27 @@ export default function Home() {
               </button>
             </div>
             <span>{score} ĐIỂM</span>
-            <button
-              className={`earth-button ${earthReady ? 'ready' : ''}`}
-              aria-label={
-                earthReady
-                  ? 'Ném đá hệ Thổ'
-                  : 'Thu thập chữ hoa và chữ thường để mở hệ Thổ'
-              }
-              disabled={!earthReady || mode !== 'playing'}
-              {...touch('earth')}
-            >
-              <Image
-                unoptimized
-                src="/abilities/earth-rock.webp"
-                alt=""
-                width={30}
-                height={30}
-              />
-              THỔ
-            </button>
+            {hero === 'mon' && (
+              <button
+                className={`earth-button ${earthReady ? 'ready' : ''}`}
+                aria-label={
+                  earthReady
+                    ? 'Ném đá hệ Thổ'
+                    : 'Thu thập chữ hoa và chữ thường để mở hệ Thổ'
+                }
+                disabled={!earthReady || mode !== 'playing'}
+                {...touch('earth')}
+              >
+                <Image
+                  unoptimized
+                  src="/abilities/earth-rock.webp"
+                  alt=""
+                  width={30}
+                  height={30}
+                />
+                THỔ
+              </button>
+            )}
             <button
               className="jump-button"
               aria-label="Nhảy"
