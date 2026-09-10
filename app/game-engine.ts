@@ -1338,16 +1338,22 @@ export function drawGame(
     wendyDistance =
       heroVisualSize * 0.78 +
       45 +
-      Math.sin(t * 0.62) * 34 +
-      Math.sin(t * 1.37 + 0.8) * 12,
+      Math.sin(t * 0.62) * 15 +
+      Math.sin(t * 1.37 + 0.8) * 6,
     wendyX = Math.max(
       wendySize / 2 + 4,
       Math.min(
         WIDTH - wendySize / 2 - 4,
-        px + 21 - p.facing * wendyDistance + Math.sin(t * 0.91 + 1.7) * 10,
+        px + 21 - wendyDistance + Math.sin(t * 0.91 + 1.7) * 8,
       ),
     ),
-    wendyY = 205 + Math.sin(t * 0.78 + 0.5) * 72 + Math.sin(t * 1.83) * 18;
+    wendyY = Math.max(
+      125,
+      Math.min(
+        500,
+        p.y - 8 + Math.sin(t * 1.35 + 0.5) * 16 + Math.sin(t * 2.6) * 5,
+      ),
+    );
   drawWendy(
     ctx,
     wendyX,
@@ -1415,95 +1421,35 @@ export function drawGame(
   }
   ctx.globalAlpha = 1;
   if (g.mode === 'playing' && g.time < g.wendyMessageUntil) {
-    const words = g.wendyMessage.split(' '),
+    const words = `Wendy: “${g.wendyMessage}”`.split(' '),
       lines: string[] = [];
     let line = '';
     for (const word of words) {
       const next = line ? `${line} ${word}` : word;
-      if (next.length > 25 && line) {
+      if (next.length > 43 && line) {
         lines.push(line);
         line = word;
       } else line = next;
     }
     if (line) lines.push(line);
-    const visibleLines = lines.slice(0, 3),
-      bubbleWidth = 178,
-      bubbleHeight = 15 + visibleLines.length * 15,
-      wendyLeft = wendyX - wendySize / 2,
-      wendyRight = wendyX + wendySize / 2,
-      heroLeft = px - heroVisualSize * 0.35,
-      heroRight = px + heroVisualSize * 0.75,
-      heroTop = p.y - heroVisualSize * 0.15,
-      heroBottom = p.y + p.h + 8,
-      candidates = [
-        { x: wendyLeft - bubbleWidth - 18, y: wendyY - bubbleHeight / 2 },
-        { x: wendyRight + 18, y: wendyY - bubbleHeight / 2 },
-        {
-          x: wendyX - bubbleWidth / 2,
-          y: wendyY - wendySize / 2 - bubbleHeight - 16,
-        },
-        {
-          x: wendyX - bubbleWidth / 2,
-          y: wendyY + wendySize / 2 + 16,
-        },
-      ],
-      scored = candidates.map((candidate) => {
-        const x = Math.max(7, Math.min(WIDTH - bubbleWidth - 7, candidate.x)),
-          y = Math.max(104, Math.min(520 - bubbleHeight, candidate.y)),
-          heroOverlap =
-            Math.max(
-              0,
-              Math.min(x + bubbleWidth, heroRight) - Math.max(x, heroLeft),
-            ) *
-            Math.max(
-              0,
-              Math.min(y + bubbleHeight, heroBottom) - Math.max(y, heroTop),
-            ),
-          wendyOverlap =
-            Math.max(
-              0,
-              Math.min(x + bubbleWidth, wendyRight) - Math.max(x, wendyLeft),
-            ) *
-            Math.max(
-              0,
-              Math.min(y + bubbleHeight, wendyY + wendySize / 2) -
-                Math.max(y, wendyY - wendySize / 2),
-            );
-        return { x, y, score: heroOverlap * 4 + wendyOverlap * 8 };
-      }),
-      bestBubble = scored.sort((a, b) => a.score - b.score)[0],
-      bubbleX = bestBubble.x,
-      bubbleY = bestBubble.y,
-      bubbleOnRight = bubbleX > wendyX,
-      tailY = Math.max(
-        bubbleY + 10,
-        Math.min(bubbleY + bubbleHeight - 10, wendyY),
-      ),
-      tailEdgeX = bubbleOnRight ? bubbleX : bubbleX + bubbleWidth,
-      tailTipX = bubbleOnRight
-        ? wendyX + wendySize / 2 + 3
-        : wendyX - wendySize / 2 - 3;
+    const visibleLines = lines.slice(0, 2),
+      subtitleHeight = visibleLines.length > 1 ? 50 : 38,
+      subtitleY = HEIGHT - subtitleHeight - 8;
     ctx.save();
-    ctx.fillStyle = '#fffbe9ed';
-    ctx.strokeStyle = '#bd7a42';
+    ctx.fillStyle = '#17251ee8';
+    ctx.strokeStyle = '#f4cf5f';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 9);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(tailEdgeX, tailY - 6);
-    ctx.lineTo(tailTipX, wendyY);
-    ctx.lineTo(tailEdgeX, tailY + 6);
+    ctx.roundRect(10, subtitleY, WIDTH - 20, subtitleHeight, 10);
     ctx.fill();
     ctx.stroke();
     visibleLines.forEach((messageLine, index) =>
       text(
         messageLine,
-        bubbleX + bubbleWidth / 2,
-        bubbleY + 17 + index * 15,
-        10,
-        '#5d3d2e',
+        WIDTH / 2,
+        subtitleY + 22 + index * 16,
+        12,
+        '#fff4bf',
         'Arial',
       ),
     );
@@ -1517,7 +1463,7 @@ export function drawGame(
   if (g.combo > 1 && g.comboTime > 0)
     text(`COMBO ×${Math.min(g.combo, 5)}`, px + 21, p.y - 18, 14, '#fff3b1');
   if (g.sky && g.mode === 'playing')
-    text('ĐƯỜNG MÂY · RƠI LÀ THUA', WIDTH / 2, 610, 13, '#4c6f69', 'Arial');
+    text('ĐƯỜNG MÂY · RƠI LÀ THUA', WIDTH / 2, 560, 13, '#4c6f69', 'Arial');
   if (cam < 200) {
     text('→', 180 - cam, 501, 26, '#668d52');
     text(
