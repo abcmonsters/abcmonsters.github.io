@@ -1334,15 +1334,26 @@ export function drawGame(
   const p = g.player,
     px = p.x - cam,
     heroVisualSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 60 : 72,
-    wendySize = heroVisualSize * 0.75,
+    wendySize = heroVisualSize * 0.5,
+    wendyDistance =
+      heroVisualSize * 0.78 +
+      45 +
+      Math.sin(t * 0.62) * 34 +
+      Math.sin(t * 1.37 + 0.8) * 12,
     wendyX = Math.max(
       wendySize / 2 + 4,
       Math.min(
         WIDTH - wendySize / 2 - 4,
-        px + 21 - p.facing * (heroVisualSize * 0.8 + 42),
+        px + 21 - p.facing * wendyDistance + Math.sin(t * 0.91 + 1.7) * 10,
       ),
     ),
-    wendyY = p.y + 5 + Math.sin(t * 3.2) * 7;
+    wendyY = Math.max(
+      125,
+      Math.min(
+        515,
+        p.y - 2 + Math.sin(t * 1.7) * 18 + Math.sin(t * 3.1 + 1.2) * 5,
+      ),
+    );
   drawWendy(ctx, wendyX, wendyY, wendySize, t);
   ctx.fillStyle = '#20372d25';
   ctx.beginPath();
@@ -1417,8 +1428,26 @@ export function drawGame(
     const visibleLines = lines.slice(0, 3),
       bubbleWidth = 178,
       bubbleHeight = 15 + visibleLines.length * 15,
-      bubbleX = Math.max(7, Math.min(WIDTH - bubbleWidth - 7, wendyX - 25)),
-      bubbleY = Math.max(104, wendyY - bubbleHeight - 18);
+      bubbleOnRight = wendyX < WIDTH / 2,
+      preferredBubbleX = bubbleOnRight
+        ? wendyX + wendySize / 2 + 18
+        : wendyX - wendySize / 2 - bubbleWidth - 18,
+      bubbleX = Math.max(
+        7,
+        Math.min(WIDTH - bubbleWidth - 7, preferredBubbleX),
+      ),
+      bubbleY = Math.max(
+        104,
+        Math.min(520 - bubbleHeight, wendyY - bubbleHeight / 2),
+      ),
+      tailY = Math.max(
+        bubbleY + 10,
+        Math.min(bubbleY + bubbleHeight - 10, wendyY),
+      ),
+      tailEdgeX = bubbleOnRight ? bubbleX : bubbleX + bubbleWidth,
+      tailTipX = bubbleOnRight
+        ? wendyX + wendySize / 2 + 3
+        : wendyX - wendySize / 2 - 3;
     ctx.save();
     ctx.fillStyle = '#fffbe9ed';
     ctx.strokeStyle = '#bd7a42';
@@ -1428,9 +1457,9 @@ export function drawGame(
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(wendyX, bubbleY + bubbleHeight);
-    ctx.lineTo(wendyX + 7, bubbleY + bubbleHeight + 9);
-    ctx.lineTo(wendyX + 13, bubbleY + bubbleHeight);
+    ctx.moveTo(tailEdgeX, tailY - 6);
+    ctx.lineTo(tailTipX, wendyY);
+    ctx.lineTo(tailEdgeX, tailY + 6);
     ctx.fill();
     ctx.stroke();
     visibleLines.forEach((messageLine, index) =>
