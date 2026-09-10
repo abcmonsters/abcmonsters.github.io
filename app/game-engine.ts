@@ -1272,7 +1272,14 @@ export function drawGame(
         speaking,
       });
     } else {
-      drawCharacterArt(ctx, g.hero, 72);
+      const heroSize = g.hero === 'rio' ? 88 : g.hero === 'sol' ? 66 : 72;
+      drawCharacterArt(ctx, g.hero, heroSize, animationTime, {
+        speed: p.vx,
+        grounded: p.grounded,
+        vy: p.vy,
+        hurt: p.invincible,
+        speaking,
+      });
     }
     ctx.restore();
   }
