@@ -1380,8 +1380,15 @@ export function drawGame(
   }
   const p = g.player,
     px = p.x - cam,
-    heroVisualSize = g.hero === 'rio' ? 104 : g.hero === 'sol' ? 50 : 72,
-    wendySize = heroVisualSize * 0.5,
+    heroVisualSize =
+      g.hero === 'rio'
+        ? 104
+        : g.hero === 'sol'
+          ? 44
+          : g.hero === 'mori'
+            ? 64
+            : 72,
+    wendySize = 36,
     wendyX = Math.max(
       wendySize / 2 + 4,
       Math.min(WIDTH - wendySize / 2 - 4, g.wendyX),
