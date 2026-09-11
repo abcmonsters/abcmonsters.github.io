@@ -1467,7 +1467,7 @@ export function drawGame(
     if (line) lines.push(line);
     const visibleLines = lines.slice(0, 2),
       subtitleHeight = visibleLines.length > 1 ? 50 : 38,
-      subtitleY = HEIGHT - subtitleHeight - 82;
+      subtitleY = HEIGHT - subtitleHeight - 112;
     ctx.save();
     ctx.fillStyle = '#17251ee8';
     ctx.strokeStyle = '#f4cf5f';

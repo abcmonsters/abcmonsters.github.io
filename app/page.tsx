@@ -550,7 +550,11 @@ export default function Home() {
               ))}
             </span>
           </div>
-          <div className="game-frame">
+          <div
+            className="game-frame"
+            onContextMenu={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
+          >
             <canvas
               ref={canvas}
               width={WIDTH}
@@ -833,7 +837,12 @@ export default function Home() {
                 </div>
                 <div className="win-words">
                   {VOCABULARY[level].map((n) => (
-                    <button key={n[0]} onClick={() => say(n[0])}>
+                    <button
+                      type="button"
+                      key={n[0]}
+                      onClick={() => say(n[0])}
+                      onContextMenu={(event) => event.preventDefault()}
+                    >
                       <Image
                         unoptimized
                         src={nounArtPath(n[0])}
@@ -899,7 +908,12 @@ export default function Home() {
                   aria-label="Từ vựng của màn"
                 >
                   {VOCABULARY[level].map((n) => (
-                    <button key={n[0]} onClick={() => say(n[0])}>
+                    <button
+                      type="button"
+                      key={n[0]}
+                      onClick={() => say(n[0])}
+                      onContextMenu={(event) => event.preventDefault()}
+                    >
                       <Image
                         unoptimized
                         src={nounArtPath(n[0])}

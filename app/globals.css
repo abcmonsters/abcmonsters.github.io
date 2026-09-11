@@ -290,11 +290,9 @@ a {
   background: #16251e;
 }
 .story-image {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
-  animation:
-    story-arrive 700ms ease both,
-    story-drift 8s ease-in-out infinite alternate;
+  animation: story-arrive 700ms ease both;
 }
 .story-shade {
   position: absolute;
@@ -351,18 +349,19 @@ a {
 .game-vocab-overlay {
   position: absolute;
   z-index: 4;
-  top: 64px;
-  left: 50%;
-  width: min(94%, 390px);
-  transform: translateX(-50%);
+  top: 76px;
+  right: 9px;
+  width: auto;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 5px;
   pointer-events: none;
 }
 .game-vocab-overlay button {
   min-width: 0;
-  padding: 4px 7px;
+  max-width: 116px;
+  padding: 4px 7px 4px 5px;
   border: 1px solid #ffffffc4;
   border-radius: 999px;
   display: flex;
@@ -406,7 +405,26 @@ a {
   font-size: 9px;
   font-weight: 900;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   pointer-events: auto;
+}
+
+.game-frame,
+.game-frame canvas,
+.game-frame button,
+.game-frame img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-frame canvas,
+.game-frame button {
+  touch-action: none;
 }
 .game-controls-overlay .move-buttons {
   display: flex;
@@ -1351,7 +1369,8 @@ footer span {
     right: 14px;
   }
   .app-shell.is-playing .game-vocab-overlay {
-    top: max(70px, calc(env(safe-area-inset-top) + 62px));
+    top: max(72px, calc(env(safe-area-inset-top) + 62px));
+    right: 8px;
   }
   .app-shell.is-playing .game-controls-overlay {
     bottom: max(14px, env(safe-area-inset-bottom));
