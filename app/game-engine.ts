@@ -131,6 +131,7 @@ export type Game = {
   wendyY: number;
   particles: Particle[];
   checkpoint: number;
+  checkpointY: number;
   jumpBuffer: number;
   coyote: number;
   shake: number;
@@ -281,6 +282,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       );
     add(5160, 450, 110, 25);
     add(5200, 550, 400, 100, true);
+    // Two broad rest islands divide the long sky route into fair sections.
+    add(1960, 522, 300, 128, true);
+    add(3700, 510, 320, 140, true);
     add(5260, 472, 105, 25);
     add(5410, 472, 105, 25);
     pickups.splice(
@@ -323,7 +327,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     );
   }
   for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
-  const maxHp = 3 + Math.floor(level / 10);
+  const maxHp = level === 0 ? 6 : 3 + Math.floor(level / 10);
   return {
     level,
     hero,
@@ -381,6 +385,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     wendyY: 245,
     particles: [],
     checkpoint: 60,
+    checkpointY: 496,
     jumpBuffer: 0,
     coyote: 0,
     shake: 0,
@@ -525,7 +530,7 @@ export function hurt(g: Game, fall = false) {
   burst(g, g.player.x + 21, g.player.y + 25, '#ed8a76');
   if (fall) {
     g.player.x = g.checkpoint;
-    g.player.y = 410;
+    g.player.y = g.checkpointY;
     g.player.vx = 0;
     g.player.vy = 0;
   } else {
@@ -622,13 +627,21 @@ export function updateGame(
       p.y = plat.y - p.h;
       p.vy = 0;
       p.grounded = true;
+      const reachedNewSkyCheckpoint =
+        g.level === 0 && p.x > g.checkpoint + 850 && p.x < g.worldWidth - 600;
       if (
         plat.ground &&
         p.x > plat.x + 40 &&
         p.x < plat.x + plat.w - 100 &&
         p.x < g.worldWidth - 600
-      )
+      ) {
         g.checkpoint = p.x;
+        g.checkpointY = p.y;
+      } else if (reachedNewSkyCheckpoint) {
+        g.checkpoint = p.x;
+        g.checkpointY = p.y;
+        wendySay(g, 'Đã lưu điểm này! Rơi cũng không phải đi lại từ đầu.', 2.7);
+      }
     }
   }
   if (p.y > HEIGHT + 70) {
@@ -806,7 +819,13 @@ export function updateGame(
   const engaged = p.x > g.worldWidth - 780 && b.hp > 0;
   if (engaged) {
     b.attackTimer -= dt;
-    const enraged = b.hp <= Math.ceil(b.maxHp / 2);
+    const bossStage =
+      b.hp <= Math.ceil(b.maxHp / 3)
+        ? 3
+        : b.hp <= Math.ceil((b.maxHp * 2) / 3)
+          ? 2
+          : 1;
+    const enraged = bossStage >= 2;
     if (b.dash > 0) {
       b.dash = Math.max(0, b.dash - dt);
       b.x += b.direction * (240 + g.difficulty * 65) * dt;
@@ -833,8 +852,28 @@ export function updateGame(
         life: 4,
         noun,
       });
+      if (bossStage >= 2) {
+        const spread = bossStage === 3 ? 0.3 : 0.2;
+        for (const turn of [-spread, spread]) {
+          const cos = Math.cos(turn),
+            sin = Math.sin(turn),
+            shotVx = (dx / length) * speed,
+            shotVy = (dy / length) * speed;
+          g.shots.push({
+            x: b.x + b.w / 2,
+            y: b.y + 60,
+            w: Math.max(40, noun[0].length * 7 + 12),
+            h: 20,
+            vx: shotVx * cos - shotVy * sin,
+            vy: shotVx * sin + shotVy * cos,
+            life: 4,
+            noun,
+          });
+        }
+      }
       b.dash = 0.48;
-      b.attackTimer = (enraged ? 2.5 : 3.3) - g.difficulty * 0.6;
+      b.attackTimer =
+        (bossStage === 3 ? 2.05 : enraged ? 2.55 : 3.35) - g.difficulty * 0.6;
     }
     b.x = Math.max(
       g.worldWidth - (g.sky ? 400 : 650),
@@ -1132,9 +1171,10 @@ export function drawGame(
   }
   // A visible flag shows the latest safe respawn point.
   if (g.checkpoint > 200) {
-    const x = g.checkpoint - cam;
-    rect(x, 516, 3, 34, '#647442');
-    rect(x + 3, 516, 17, 12, '#d5ef75');
+    const x = g.checkpoint - cam,
+      flagBottom = g.checkpointY + g.player.h;
+    rect(x, flagBottom - 34, 3, 34, '#647442');
+    rect(x + 3, flagBottom - 34, 17, 12, '#d5ef75');
   }
   for (const food of g.foods) {
     if (food.eaten || food.x - cam < -60 || food.x - cam > WIDTH + 60) continue;
@@ -1241,7 +1281,7 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
-      if (e.rockHp < 3) {
+      if (e.alert || e.rockHp < 3) {
         for (let hit = 0; hit < 3; hit++)
           rect(
             x + 8 + hit * 12,
@@ -1295,6 +1335,20 @@ export function drawGame(
       b.y - 30,
       13,
       night ? '#eff0ce' : '#47543b',
+    );
+    const bossStage =
+      b.hp <= Math.ceil(b.maxHp / 3)
+        ? 3
+        : b.hp <= Math.ceil((b.maxHp * 2) / 3)
+          ? 2
+          : 1;
+    text(
+      `GIAI ĐOẠN ${bossStage}/3`,
+      bx + 43,
+      b.y - 44,
+      9,
+      night ? '#ffe59a' : '#715239',
+      'Arial',
     );
     for (let i = 0; i < b.maxHp; i++)
       rect(
@@ -1356,12 +1410,13 @@ export function drawGame(
     '#d5ac40',
   );
   if (g.mode === 'playing') {
+    rect(WIDTH / 2 - 73, 76, 146, 22, '#173126bd');
     text(
-      `Enemy: ${g.enemies.length - remaining.length}/${g.enemies.length}`,
+      `ĐÃ HẠ ${g.enemies.length - remaining.length}/${g.enemies.length}`,
       WIDTH / 2,
-      88,
-      14,
-      night ? '#f5f4d7' : '#36533d',
+      91,
+      12,
+      '#fff7ce',
       'Arial',
     );
     if (b.hp === 0 && remaining.length) {
