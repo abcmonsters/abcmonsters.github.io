@@ -672,66 +672,73 @@ export default function Home() {
             )}
             {mode === 'ready' && (
               <div className="start-screen">
-                <span className="game-kicker">CHỌN NGƯỜI BẠN ĐỒNG HÀNH</span>
-                <h2>
-                  ALPHABET
-                  <br />
-                  <em>ADVENTURE</em>
-                </h2>
-                <div className="character-picker" aria-label="Chọn nhân vật">
-                  {CHARACTERS.map((character) => (
-                    <button
-                      key={character.id}
-                      type="button"
-                      aria-pressed={hero === character.id}
-                      className={hero === character.id ? 'selected' : ''}
-                      onClick={() => {
-                        setHero(character.id);
-                        game.current.hero = character.id;
-                      }}
-                    >
-                      <Image
-                        unoptimized
-                        src={character.image}
-                        alt={character.name}
-                        width={58}
-                        height={58}
-                      />
-                      <b>{character.name}</b>
-                      <small>Hệ {character.element}</small>
-                    </button>
-                  ))}
-                </div>
-                <div className="level-pill">
-                  {letter} is for {word[0]}
-                </div>
-                <p>
-                  {world.name} · Độ khó {1 + Math.floor(level / 5)}/6
-                </p>
-                <button
-                  className="primary-button"
-                  onClick={start}
-                  disabled={!loaded}
-                >
-                  <Play size={20} fill="currentColor" />
-                  {assetError
-                    ? 'Không tải được hình nhân vật'
-                    : !loaded
-                      ? 'Đang tải nhân vật…'
-                      : 'Bắt đầu phiêu lưu'}
-                </button>
-                {assetError ? (
+                <div className="start-card">
+                  <span className="game-kicker">CHỌN NGƯỜI BẠN ĐỒNG HÀNH</span>
+                  <h2>
+                    ALPHABET <em>ADVENTURE</em>
+                  </h2>
+                  <div className="character-picker" aria-label="Chọn nhân vật">
+                    {CHARACTERS.map((character) => (
+                      <button
+                        key={character.id}
+                        type="button"
+                        aria-pressed={hero === character.id}
+                        className={`character-${character.id} ${hero === character.id ? 'selected' : ''}`}
+                        onClick={() => {
+                          setHero(character.id);
+                          game.current.hero = character.id;
+                        }}
+                      >
+                        {hero === character.id && (
+                          <span className="selected-mark" aria-hidden="true">
+                            <Check size={12} strokeWidth={3} />
+                          </span>
+                        )}
+                        <Image
+                          unoptimized
+                          src={character.image}
+                          alt={character.name}
+                          width={58}
+                          height={58}
+                        />
+                        <b>{character.name}</b>
+                        <small>Hệ {character.element}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="start-level-info">
+                    <div className="level-pill">
+                      {letter} is for {word[0]}
+                    </div>
+                    <p>
+                      {world.name} · Độ khó {1 + Math.floor(level / 5)}/6
+                    </p>
+                  </div>
                   <button
-                    className="text-button"
-                    onClick={() => window.location.reload()}
+                    className="primary-button"
+                    onClick={start}
+                    disabled={!loaded}
                   >
-                    Tải lại game
+                    <Play size={20} fill="currentColor" />
+                    {assetError
+                      ? 'Không tải được hình nhân vật'
+                      : !loaded
+                        ? 'Đang tải nhân vật…'
+                        : 'Bắt đầu phiêu lưu'}
                   </button>
-                ) : (
-                  <small>
-                    {VOCABULARY[level].map((n) => n[0]).join(' · ')}
-                  </small>
-                )}
+                  {assetError ? (
+                    <button
+                      className="text-button"
+                      onClick={() => window.location.reload()}
+                    >
+                      Tải lại game
+                    </button>
+                  ) : (
+                    <small>
+                      Từ vựng: {VOCABULARY[level].map((n) => n[0]).join(' · ')}
+                    </small>
+                  )}
+                </div>
               </div>
             )}
             {mode === 'paused' && (
