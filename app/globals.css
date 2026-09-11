@@ -1119,6 +1119,53 @@ footer span {
 .quiz-choices button svg {
   margin-left: auto;
 }
+.quiz-typing {
+  width: 100%;
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  text-align: left;
+}
+.quiz-typing label {
+  grid-column: 1 / -1;
+  color: #526c42;
+  font-size: 12px;
+  font-weight: 800;
+}
+.quiz-typing input {
+  min-width: 0;
+  height: 48px;
+  padding: 0 14px;
+  border: 2px solid #9eb875;
+  border-radius: 12px;
+  outline: none;
+  background: #fffef4;
+  color: #304b2c;
+  font-size: 18px;
+  font-weight: 800;
+}
+.quiz-typing input:focus {
+  border-color: #5e8139;
+  box-shadow: 0 0 0 3px #8caf5c33;
+}
+.quiz-typing button {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #77994b;
+  color: white;
+  font-size: 13px;
+  font-weight: 850;
+}
+.quiz-typing button:disabled {
+  opacity: 0.45;
+}
 .quiz-screen .quiz-hint {
   font-size: 12px;
   min-height: 38px;
