@@ -280,9 +280,11 @@ a {
   background: linear-gradient(#e7f4da9c, #e7f4da00 90%);
 }
 .story-screen {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 20;
+  width: 100vw;
+  height: 100dvh;
+  z-index: 1000;
   overflow: hidden;
   color: white;
   background: #16251e;
@@ -336,14 +338,101 @@ a {
 }
 .story-copy {
   position: absolute;
-  left: 22px;
-  right: 22px;
-  bottom: 23px;
+  left: 50%;
+  width: min(620px, calc(100vw - 36px));
+  bottom: max(23px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   text-shadow: 0 2px 5px #000;
+}
+.game-vocab-overlay {
+  position: absolute;
+  z-index: 4;
+  top: 64px;
+  left: 50%;
+  width: min(94%, 390px);
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+.game-vocab-overlay button {
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid #ffffffc4;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: #173126c9;
+  color: #fff9cf;
+  box-shadow: 0 3px 8px #1020194f;
+  font-size: 9px;
+  font-weight: 850;
+  pointer-events: auto;
+}
+.game-vocab-overlay img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.game-controls-overlay {
+  position: absolute;
+  z-index: 5;
+  left: 12px;
+  right: 12px;
+  bottom: 13px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+.game-controls-overlay button {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid #ffffffb8;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #263d30c9;
+  color: white;
+  box-shadow: 0 4px 12px #10201969;
+  font-size: 9px;
+  font-weight: 900;
+  touch-action: none;
+  pointer-events: auto;
+}
+.game-controls-overlay .move-buttons {
+  display: flex;
+  gap: 7px;
+}
+.game-controls-overlay .earth-button {
+  margin-left: auto;
+  color: #fff6bb;
+}
+.game-controls-overlay .earth-button:disabled {
+  opacity: 0.45;
+}
+.game-controls-overlay .earth-button img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+}
+.game-controls-overlay .jump-button {
+  width: 64px;
+  height: 64px;
+  background: #d9ed7cdd;
+  color: #263d30;
+}
+.game-controls-overlay .jump-button svg {
+  width: 22px;
+  height: 22px;
 }
 .story-copy > small:first-child {
   color: #ffe070;

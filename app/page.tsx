@@ -892,57 +892,64 @@ export default function Home() {
                 </button>
               </div>
             )}
-          </div>
-          <div className="controls">
-            <div>
-              <button aria-label="Sang trái" {...touch('left')}>
-                <ArrowLeft />
-              </button>
-              <button aria-label="Sang phải" {...touch('right')}>
-                <ArrowRight />
-              </button>
-            </div>
-            <span>{score} ĐIỂM</span>
-            <button
-              className={`earth-button element-${hero} ${earthReady ? 'ready' : ''}`}
-              aria-label={
-                earthReady
-                  ? `${skillInfo.action} hệ ${heroInfo.element}`
-                  : `Thu thập chữ hoa và chữ thường để mở hệ ${heroInfo.element}`
-              }
-              disabled={!earthReady || mode !== 'playing'}
-              {...touch('earth')}
-            >
-              <Image
-                unoptimized
-                src={skillInfo.image}
-                alt=""
-                width={30}
-                height={30}
-              />
-              {skillInfo.label}
-            </button>
-            <button
-              className="jump-button"
-              aria-label="Nhảy"
-              {...touch('jump')}
-            >
-              <ArrowUp /> NHẢY
-            </button>
-          </div>
-          <div className="mobile-wordbook">
-            {VOCABULARY[level].map((n) => (
-              <button key={n[0]} onClick={() => say(n[0])}>
-                <Image
-                  unoptimized
-                  src={nounArtPath(n[0])}
-                  alt=""
-                  width={24}
-                  height={24}
-                />{' '}
-                {n[0]} <Volume2 size={12} />
-              </button>
-            ))}
+            {mode === 'playing' && (
+              <>
+                <div
+                  className="game-vocab-overlay"
+                  aria-label="Từ vựng của màn"
+                >
+                  {VOCABULARY[level].map((n) => (
+                    <button key={n[0]} onClick={() => say(n[0])}>
+                      <Image
+                        unoptimized
+                        src={nounArtPath(n[0])}
+                        alt=""
+                        width={20}
+                        height={20}
+                      />
+                      {n[0]}
+                      <Volume2 size={10} />
+                    </button>
+                  ))}
+                </div>
+                <div className="game-controls-overlay">
+                  <div className="move-buttons">
+                    <button aria-label="Sang trái" {...touch('left')}>
+                      <ArrowLeft />
+                    </button>
+                    <button aria-label="Sang phải" {...touch('right')}>
+                      <ArrowRight />
+                    </button>
+                  </div>
+                  <button
+                    className={`earth-button element-${hero} ${earthReady ? 'ready' : ''}`}
+                    aria-label={
+                      earthReady
+                        ? `${skillInfo.action} hệ ${heroInfo.element}`
+                        : `Thu thập chữ hoa và chữ thường để mở hệ ${heroInfo.element}`
+                    }
+                    disabled={!earthReady}
+                    {...touch('earth')}
+                  >
+                    <Image
+                      unoptimized
+                      src={skillInfo.image}
+                      alt=""
+                      width={25}
+                      height={25}
+                    />
+                    {skillInfo.label}
+                  </button>
+                  <button
+                    className="jump-button"
+                    aria-label="Nhảy"
+                    {...touch('jump')}
+                  >
+                    <ArrowUp /> NHẢY
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           <div className="keyboard-note">
             ← → di chuyển <span>·</span> Space nhảy <span>·</span> F dùng kỹ
