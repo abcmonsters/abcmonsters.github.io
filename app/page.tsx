@@ -13,12 +13,7 @@ import { loadVietnamFoodArt } from './vietnam-scene';
 import CharacterChoicePortrait from './character-choice-portrait';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  speakVoice,
-  stopVoice,
-  voiceSpeaking,
-  voiceLabel,
-} from './recorded-speech';
+import { speakVoice, stopVoice, voiceSpeaking } from './recorded-speech';
 import { VOCABULARY } from './lesson-data';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -94,7 +89,8 @@ export default function Home() {
     input = useRef({ left: false, right: false, jump: false, earth: false }),
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null),
-    storyAudio = useRef<HTMLAudioElement>(null);
+    storyAudio = useRef<HTMLAudioElement>(null),
+    storySeeking = useRef(false);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
@@ -115,7 +111,6 @@ export default function Home() {
     [storyOpen, setStoryOpen] = useState(true),
     [storyStarted, setStoryStarted] = useState(false),
     [storyScene, setStoryScene] = useState(0);
-  const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
@@ -157,6 +152,7 @@ export default function Home() {
     const sound = storyAudio.current;
     if (!sound) return;
     sound.currentTime = 0;
+    storySeeking.current = false;
     sound.muted = mutedRef.current;
     setStoryScene(0);
     setStoryStarted(true);
@@ -169,9 +165,17 @@ export default function Home() {
     }
     const next = storyScene + 1;
     setStoryScene(next);
-    if (storyAudio.current) {
-      storyAudio.current.currentTime = STORY_SCENES[next].start;
-      void storyAudio.current.play();
+    const sound = storyAudio.current;
+    if (sound) {
+      storySeeking.current = true;
+      sound.pause();
+      const resumeAtScene = () => {
+        storySeeking.current = false;
+        sound.muted = mutedRef.current;
+        void sound.play();
+      };
+      sound.addEventListener('seeked', resumeAtScene, { once: true });
+      sound.currentTime = STORY_SCENES[next].start;
     }
   }, [closeStory, storyScene]);
   const tone = useCallback((hz: number) => {
@@ -235,6 +239,10 @@ export default function Home() {
     let frame = 0;
     const syncStoryToAudio = () => {
       const current = storyAudio.current?.currentTime ?? 0;
+      if (storySeeking.current) {
+        frame = requestAnimationFrame(syncStoryToAudio);
+        return;
+      }
       let active = 0;
       STORY_SCENES.forEach((scene, index) => {
         if (current >= scene.start) active = index;
@@ -611,8 +619,9 @@ export default function Home() {
                 <Image
                   key={STORY_SCENES[storyScene].image}
                   unoptimized
-                  fill
                   priority
+                  width={1024}
+                  height={1024}
                   src={STORY_SCENES[storyScene].image}
                   alt={STORY_SCENES[storyScene].title}
                   className="story-image"
@@ -1137,7 +1146,6 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <p className="voice-label">{voiceName}</p>
           <div className="tip">
             <span>MON MÁCH NHỎ</span>
             <p>
