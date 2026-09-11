@@ -95,7 +95,7 @@ export default function Home() {
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null),
     storyAudio = useRef<HTMLAudioElement>(null),
-    storySyncHoldUntil = useRef(0);
+    storySceneRef = useRef(0);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
@@ -159,27 +159,28 @@ export default function Home() {
     if (!sound) return;
     sound.currentTime = 0;
     sound.muted = mutedRef.current;
-    storySyncHoldUntil.current = 0;
+    storySceneRef.current = 0;
     setStoryScene(0);
     setStoryStarted(true);
     void sound.play();
   }, []);
   const nextStoryScene = useCallback(() => {
-    if (storyScene >= STORY_SCENES.length - 1) {
+    const current = storySceneRef.current;
+    if (current >= STORY_SCENES.length - 1) {
       closeStory();
       return;
     }
-    const next = storyScene + 1;
+    const next = current + 1;
+    storySceneRef.current = next;
     setStoryScene(next);
     const sound = storyAudio.current;
     if (sound) {
-      storySyncHoldUntil.current = performance.now() + 1000;
       sound.pause();
       sound.currentTime = STORY_SCENES[next].start + 0.02;
       sound.muted = mutedRef.current;
       void sound.play();
     }
-  }, [closeStory, storyScene]);
+  }, [closeStory]);
   const tone = useCallback((hz: number) => {
     if (mutedRef.current) return;
     try {
@@ -240,16 +241,14 @@ export default function Home() {
     if (!storyOpen || !storyStarted) return;
     let frame = 0;
     const syncStoryToAudio = () => {
-      if (performance.now() < storySyncHoldUntil.current) {
-        frame = requestAnimationFrame(syncStoryToAudio);
-        return;
-      }
       const current = storyAudio.current?.currentTime ?? 0;
       let active = 0;
       STORY_SCENES.forEach((scene, index) => {
         if (current >= scene.start) active = index;
       });
-      setStoryScene((previous) => (previous === active ? previous : active));
+      const next = Math.max(active, storySceneRef.current);
+      if (next !== storySceneRef.current) storySceneRef.current = next;
+      setStoryScene((previous) => (previous === next ? previous : next));
       frame = requestAnimationFrame(syncStoryToAudio);
     };
     frame = requestAnimationFrame(syncStoryToAudio);
