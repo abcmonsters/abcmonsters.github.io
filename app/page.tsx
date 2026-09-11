@@ -88,6 +88,9 @@ const STORY_SCENES = [
   },
 ] as const;
 
+const usesDesktopStoryClips = () =>
+  window.matchMedia('(min-width: 901px)').matches;
+
 export default function Home() {
   const canvas = useRef<HTMLCanvasElement>(null),
     game = useRef(createGame()),
@@ -153,17 +156,32 @@ export default function Home() {
     setStoryOpen(false);
     setStoryStarted(false);
   }, []);
+  const playDesktopStoryClip = useCallback((scene: number) => {
+    const sound = storyAudio.current;
+    if (!sound) return;
+    sound.pause();
+    sound.src = `/story/audio-scenes/scene-${scene + 1}.mp3`;
+    sound.load();
+    sound.muted = mutedRef.current;
+    void sound.play();
+  }, []);
   const beginStory = useCallback(() => {
     stopVoice();
     const sound = storyAudio.current;
     if (!sound) return;
-    sound.currentTime = 0;
     sound.muted = mutedRef.current;
     storySceneRef.current = 0;
     setStoryScene(0);
     setStoryStarted(true);
-    void sound.play();
-  }, []);
+    if (usesDesktopStoryClips()) {
+      playDesktopStoryClip(0);
+    } else {
+      sound.src = '/story/story-google-ai-v2.wav';
+      sound.load();
+      sound.currentTime = 0;
+      void sound.play();
+    }
+  }, [playDesktopStoryClip]);
   const nextStoryScene = useCallback(() => {
     const current = storySceneRef.current;
     if (current >= STORY_SCENES.length - 1) {
@@ -174,13 +192,23 @@ export default function Home() {
     storySceneRef.current = next;
     setStoryScene(next);
     const sound = storyAudio.current;
-    if (sound) {
+    if (usesDesktopStoryClips()) {
+      playDesktopStoryClip(next);
+    } else if (sound) {
       sound.pause();
       sound.currentTime = STORY_SCENES[next].start + 0.02;
       sound.muted = mutedRef.current;
       void sound.play();
     }
-  }, [closeStory]);
+  }, [closeStory, playDesktopStoryClip]);
+  const handleStoryAudioEnded = useCallback(() => {
+    if (
+      usesDesktopStoryClips() &&
+      storySceneRef.current < STORY_SCENES.length - 1
+    ) {
+      nextStoryScene();
+    }
+  }, [nextStoryScene]);
   const tone = useCallback((hz: number) => {
     if (mutedRef.current) return;
     try {
@@ -239,6 +267,7 @@ export default function Home() {
   useEffect(() => () => stopVoice(), []);
   useEffect(() => {
     if (!storyOpen || !storyStarted) return;
+    if (usesDesktopStoryClips()) return;
     let frame = 0;
     const syncStoryToAudio = () => {
       const current = storyAudio.current?.currentTime ?? 0;
@@ -606,6 +635,7 @@ export default function Home() {
               ref={storyAudio}
               src="/story/story-google-ai-v2.wav"
               preload="auto"
+              onEnded={handleStoryAudioEnded}
             >
               <track
                 kind="captions"
