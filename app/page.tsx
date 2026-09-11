@@ -231,6 +231,21 @@ export default function Home() {
   );
   useEffect(() => () => stopVoice(), []);
   useEffect(() => {
+    if (!storyOpen || !storyStarted) return;
+    let frame = 0;
+    const syncStoryToAudio = () => {
+      const current = storyAudio.current?.currentTime ?? 0;
+      let active = 0;
+      STORY_SCENES.forEach((scene, index) => {
+        if (current >= scene.start) active = index;
+      });
+      setStoryScene((previous) => (previous === active ? previous : active));
+      frame = requestAnimationFrame(syncStoryToAudio);
+    };
+    frame = requestAnimationFrame(syncStoryToAudio);
+    return () => cancelAnimationFrame(frame);
+  }, [storyOpen, storyStarted]);
+  useEffect(() => {
     const id = requestAnimationFrame(() => {
       try {
         const saved = JSON.parse(
@@ -582,15 +597,6 @@ export default function Home() {
               ref={storyAudio}
               src="/story/story-google-ai-v2.wav"
               preload="auto"
-              onTimeUpdate={(event) => {
-                if (!storyStarted) return;
-                const current = event.currentTarget.currentTime;
-                let active = 0;
-                STORY_SCENES.forEach((scene, index) => {
-                  if (current >= scene.start) active = index;
-                });
-                if (active !== storyScene) setStoryScene(active);
-              }}
             >
               <track
                 kind="captions"
