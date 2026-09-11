@@ -1302,6 +1302,61 @@ footer span {
     font-size: 42px;
   }
 }
+
+@media (max-width: 900px) {
+  .app-shell.is-playing {
+    width: 100vw;
+    min-height: 100dvh;
+    padding: 0;
+    overflow: hidden;
+    background: #0d2a20;
+  }
+  .app-shell.is-playing .topbar,
+  .app-shell.is-playing .journey,
+  .app-shell.is-playing .lesson,
+  .app-shell.is-playing .level-heading,
+  .app-shell.is-playing .keyboard-note,
+  .app-shell.is-playing footer {
+    display: none;
+  }
+  .app-shell.is-playing .game-layout,
+  .app-shell.is-playing .game-column {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    display: block;
+  }
+  .app-shell.is-playing .game-frame {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .app-shell.is-playing .game-frame canvas {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .app-shell.is-playing .game-hud {
+    top: max(14px, env(safe-area-inset-top));
+    left: 14px;
+    right: 14px;
+  }
+  .app-shell.is-playing .game-vocab-overlay {
+    top: max(70px, calc(env(safe-area-inset-top) + 62px));
+  }
+  .app-shell.is-playing .game-controls-overlay {
+    bottom: max(14px, env(safe-area-inset-bottom));
+  }
+}
 .vocabulary-list {
   margin-top: 24px;
 }

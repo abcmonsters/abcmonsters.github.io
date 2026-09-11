@@ -479,7 +479,7 @@ export default function Home() {
     </div>
   );
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${mode === 'playing' ? 'is-playing' : ''}`}>
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Mon Alphabet Adventure">
           mon<span>✦</span>
