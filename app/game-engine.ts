@@ -1289,7 +1289,7 @@ export function drawGame(
             : g.sky
               ? '#f4f4df'
               : palette.grass;
-    const painted = drawPlatformArt(ctx, p, x, g.sky);
+    const painted = drawPlatformArt(ctx, p, x, palette.kind);
     if (!painted) {
       rect(x + 6, p.y + 7, p.w, p.h, '#35513044');
       rect(
