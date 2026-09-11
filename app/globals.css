@@ -597,6 +597,12 @@ a {
   scale: var(--character-scale, 1);
   transform-origin: center bottom;
 }
+.character-choice-canvas {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 3px #29412535);
+}
 .character-mon img {
   --character-scale: 0.94;
 }
@@ -1386,8 +1392,12 @@ footer span {
     padding: max(66px, calc(env(safe-area-inset-top) + 58px)) 14px 18px;
   }
   .start-card {
+    width: 100%;
+    height: 100%;
+    max-height: none;
     padding: 19px 12px 16px;
     border-radius: 20px;
+    justify-content: center;
   }
   .character-picker {
     gap: 5px;
@@ -1396,6 +1406,10 @@ footer span {
   .character-picker img {
     width: clamp(38px, 11vw, 54px);
     height: clamp(38px, 11vw, 54px);
+  }
+  .character-choice-canvas {
+    width: clamp(48px, 13vw, 64px);
+    height: clamp(48px, 13vw, 64px);
   }
   .mon-intro {
     height: clamp(95px, 20dvh, 166px);
@@ -1490,6 +1504,10 @@ footer span {
   .character-picker img {
     width: 36px;
     height: 36px;
+  }
+  .character-choice-canvas {
+    width: 44px;
+    height: 44px;
   }
   .character-picker button {
     padding: 4px 2px;

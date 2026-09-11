@@ -10,6 +10,7 @@ import {
   type CharacterId,
 } from './character-art';
 import { loadVietnamFoodArt } from './vietnam-scene';
+import CharacterChoicePortrait from './character-choice-portrait';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -723,13 +724,20 @@ export default function Home() {
                             <Check size={12} strokeWidth={3} />
                           </span>
                         )}
-                        <Image
-                          unoptimized
-                          src={character.image}
-                          alt={character.name}
-                          width={58}
-                          height={58}
-                        />
+                        {hero === character.id ? (
+                          <CharacterChoicePortrait
+                            character={character.id}
+                            label={character.name}
+                          />
+                        ) : (
+                          <Image
+                            unoptimized
+                            src={character.image}
+                            alt={character.name}
+                            width={58}
+                            height={58}
+                          />
+                        )}
                         <b>{character.name}</b>
                         <small>Hệ {character.element}</small>
                       </button>
