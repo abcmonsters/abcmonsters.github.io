@@ -73,13 +73,13 @@ const STORY_SCENES = [
     start: 21.6,
   },
   {
-    image: '/story/scene-4.png',
+    image: '/story/scene-4-v2.jpg',
     title: 'Bốn người bạn đứng lên',
     text: 'Mon, Mori, Rio và Sol lên đường cùng Wendy để mang các chữ cái trở về.',
     start: 29.62,
   },
   {
-    image: '/story/scene-5.png',
+    image: '/story/scene-5-v2.jpg',
     title: 'Hành trình giải cứu từ vựng',
     text: 'Họ phải học từ mới, đánh bại toàn bộ enemy và chiến thắng trùm cuối của mỗi vùng đất.',
     start: 43.81,
