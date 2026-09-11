@@ -512,10 +512,15 @@ a {
 }
 @media (orientation: landscape) and (min-aspect-ratio: 4/3) {
   .story-image {
-    object-position: left center;
+    right: min(42vw, 420px) !important;
+    width: calc(100% - min(42vw, 420px)) !important;
+    object-fit: contain;
+    object-position: center;
+    animation: story-landscape-arrive 500ms ease both;
   }
   .story-shade {
-    background: linear-gradient(90deg, transparent 45%, #07140d4d 68%, #07140d);
+    right: min(42vw, 420px);
+    background: linear-gradient(180deg, #07140d45, transparent 25%, #07140d38);
   }
   .story-progress {
     right: min(42vw, 420px);
@@ -527,10 +532,19 @@ a {
     padding: 62px 26px 24px;
     transform: none;
     justify-content: center;
-    background: linear-gradient(90deg, #10201900, #102019d9 18%, #102019f5);
+    background: linear-gradient(145deg, #1e3a2d, #102019);
+    box-shadow: -16px 0 38px #07140d59;
   }
   .story-copy p {
     min-height: 0;
+  }
+}
+@keyframes story-landscape-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 @media (orientation: landscape) and (max-height: 560px) {

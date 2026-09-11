@@ -591,7 +591,6 @@ export default function Home() {
                 });
                 if (active !== storyScene) setStoryScene(active);
               }}
-              onEnded={closeStory}
             >
               <track
                 kind="captions"
