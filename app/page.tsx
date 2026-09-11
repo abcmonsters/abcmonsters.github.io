@@ -626,9 +626,6 @@ export default function Home() {
                       <ChevronRight size={19} />
                     </button>
                   )}
-                  <span className="story-voice">
-                    Google AI Studio · Tiếng Việt
-                  </span>
                 </div>
               </div>
             )}

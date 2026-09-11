@@ -1008,19 +1008,20 @@ footer span {
 }
 .pickup-notice {
   position: absolute;
-  top: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  padding: 10px 15px;
+  top: 23%;
+  left: 10px;
+  max-width: calc(100% - 142px);
+  padding: 8px 12px;
   background: #fbffebed;
   color: #3a5830;
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 1.25;
   font-weight: 700;
   border: 2px solid #9fb97a;
   border-radius: 12px;
   z-index: 4;
   box-shadow: 0 4px 0 #5c793a30;
+  text-align: left;
 }
 .state-screen {
   position: absolute;
