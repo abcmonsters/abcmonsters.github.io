@@ -346,6 +346,22 @@ a {
   text-align: center;
   text-shadow: 0 2px 5px #000;
 }
+@media (min-width: 901px) {
+  .story-screen {
+    inset: 50% auto auto 50%;
+    width: min(430px, calc((100dvh - 48px) * 0.52), calc(100vw - 48px));
+    height: min(860px, calc(100dvh - 48px));
+    transform: translate(-50%, -50%);
+    border: 1px solid #ffffff24;
+    border-radius: 28px;
+    box-shadow:
+      0 0 0 100vmax #07140df2,
+      0 24px 80px #0009;
+  }
+  .story-copy {
+    width: calc(100% - 36px);
+  }
+}
 .game-vocab-overlay {
   position: absolute;
   z-index: 4;

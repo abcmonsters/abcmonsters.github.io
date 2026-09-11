@@ -94,7 +94,8 @@ export default function Home() {
     input = useRef({ left: false, right: false, jump: false, earth: false }),
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null),
-    storyAudio = useRef<HTMLAudioElement>(null);
+    storyAudio = useRef<HTMLAudioElement>(null),
+    storySyncHoldUntil = useRef(0);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
@@ -158,6 +159,7 @@ export default function Home() {
     if (!sound) return;
     sound.currentTime = 0;
     sound.muted = mutedRef.current;
+    storySyncHoldUntil.current = 0;
     setStoryScene(0);
     setStoryStarted(true);
     void sound.play();
@@ -169,9 +171,13 @@ export default function Home() {
     }
     const next = storyScene + 1;
     setStoryScene(next);
-    if (storyAudio.current) {
-      storyAudio.current.currentTime = STORY_SCENES[next].start;
-      void storyAudio.current.play();
+    const sound = storyAudio.current;
+    if (sound) {
+      storySyncHoldUntil.current = performance.now() + 1000;
+      sound.pause();
+      sound.currentTime = STORY_SCENES[next].start + 0.02;
+      sound.muted = mutedRef.current;
+      void sound.play();
     }
   }, [closeStory, storyScene]);
   const tone = useCallback((hz: number) => {
@@ -234,6 +240,10 @@ export default function Home() {
     if (!storyOpen || !storyStarted) return;
     let frame = 0;
     const syncStoryToAudio = () => {
+      if (performance.now() < storySyncHoldUntil.current) {
+        frame = requestAnimationFrame(syncStoryToAudio);
+        return;
+      }
       const current = storyAudio.current?.currentTime ?? 0;
       let active = 0;
       STORY_SCENES.forEach((scene, index) => {
