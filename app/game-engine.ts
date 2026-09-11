@@ -55,6 +55,9 @@ export type Enemy = Rect & {
   rockHp: number;
   vx: number;
   alert: boolean;
+  activated: boolean;
+  zoneStart: number;
+  zoneEnd: number;
   fireTimer: number;
   warning: number;
   origin: number;
@@ -289,13 +292,28 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     (platform) =>
       platform.x > 330 && platform.x < worldWidth - 600 && platform.w > 70,
   );
-  const landPlatforms = routePlatforms.filter((platform) => platform.ground);
+  const landPlatforms = routePlatforms.filter((platform) => platform.ground),
+    skyPlatforms = routePlatforms.filter(
+      (platform) => !platform.ground && platform.y < 440,
+    ),
+    waterPlatforms = routePlatforms.filter(
+      (platform) => !platform.ground && platform.y >= 440,
+    );
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => {
     const noun = VOCABULARY[level][i % 3];
     const behavior = enemyMotion(noun[0]);
     const habitat = enemyHabitat(noun[0]);
-    const eligiblePlatforms =
-      habitat === 'land' ? landPlatforms : routePlatforms;
+    const preferredPlatforms =
+        habitat === 'land'
+          ? landPlatforms
+          : habitat === 'sky'
+            ? skyPlatforms
+            : habitat === 'water'
+              ? waterPlatforms
+              : routePlatforms,
+      eligiblePlatforms = preferredPlatforms.length
+        ? preferredPlatforms
+        : routePlatforms;
     // Round-robin keeps consecutive vocabulary enemies on separate islands.
     // When a route repeats, divide the available width into stable slots so
     // two enemies never spawn on the same point.
@@ -314,6 +332,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     return {
       vx: 0,
       alert: false,
+      activated: false,
+      zoneStart: Math.max(0, origin - (habitat === 'sky' ? 430 : 300)),
+      zoneEnd: Math.min(worldWidth, origin + (habitat === 'sky' ? 430 : 340)),
       fireTimer: 1.8 + (i % 3) * 0.65,
       warning: 0,
       x: origin,
@@ -414,6 +435,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
           noun,
           behavior,
           habitat,
+          activated: false,
+          zoneStart: Math.max(0, x - (habitat === 'sky' ? 430 : 285)),
+          zoneEnd: Math.min(worldWidth, x + (habitat === 'sky' ? 430 : 330)),
         };
       }),
     );
@@ -423,17 +447,26 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       !platform.ground && platform.x > 700 && platform.x < worldWidth - 700,
   );
   interactivePlatforms.forEach((platform, index) => {
+    const isWaterRoute =
+        levelHabitats.includes('water') && platform.baseY >= 440,
+      isSkyRoute =
+        (levelHabitats.includes('sky') || levelMotions.includes('hover')) &&
+        platform.baseY < 440;
     if (platform.moving) {
       const cycle = level === 0 ? index % 3 : (index + level) % 4;
-      platform.motion =
-        cycle === 0
+      platform.motion = isWaterRoute
+        ? 'water'
+        : cycle === 0
           ? 'horizontal'
           : cycle === 1
             ? 'vertical'
-            : cycle === 2 && levelHabitats.includes('water')
-              ? 'water'
-              : 'fall';
-    } else if (level >= 4 && (index + level * 2) % 11 === 0) {
+            : 'fall';
+    } else if (
+      level >= 4 &&
+      !isWaterRoute &&
+      (isSkyRoute || (index + level) % 2 === 0) &&
+      (index + level * 2) % 11 === 0
+    ) {
       platform.moving = true;
       platform.motion = 'fall';
     }
@@ -824,11 +857,30 @@ export function updateGame(
     const ground = g.platforms[e.platformIndex];
     if (ground && !['fly', 'swim', 'hover'].includes(e.behavior)) {
       e.origin += ground.dx;
+      e.zoneStart += ground.dx;
+      e.zoneEnd += ground.dx;
       e.baseY = ground.y - e.h;
       if (e.behavior === 'drop' && e.dropState === 'ready') e.y = e.baseY - 150;
     }
+    if (!e.activated) {
+      const enteredZone = p.x + p.w >= e.zoneStart && p.x <= e.zoneEnd;
+      if (enteredZone) {
+        e.activated = true;
+        e.alert = true;
+        e.fireTimer = Math.max(1.15, e.fireTimer);
+        if (!e.seen) {
+          e.seen = true;
+          learn(g, e.noun, 'encounter');
+        }
+      } else {
+        e.vx = 0;
+        e.warning = 0;
+        if (!airborne(e.behavior)) e.y += (e.baseY - e.y) * Math.min(1, dt * 8);
+        continue;
+      }
+    }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
-    e.alert = Math.abs(distance) < (e.alert ? 1000 : 470 + g.difficulty * 100);
+    e.alert = true;
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low = airborne(e.behavior)
       ? 20
@@ -943,10 +995,6 @@ export function updateGame(
         e.fireTimer = 2.9 - g.difficulty * 0.65 + (e.phase % 0.5);
       }
     } else e.fireTimer = Math.max(0.8, e.fireTimer);
-    if (!e.seen && Math.abs(e.x - p.x) < 180) {
-      e.seen = true;
-      learn(g, e.noun, 'encounter');
-    }
     if (overlaps(p, e)) {
       if (p.vy > 0 && oldBottom < e.y + 19) {
         e.dead = true;
