@@ -603,30 +603,33 @@ export default function Home() {
             </audio>
             {storyOpen && (
               <div className="story-screen" aria-label="Câu chuyện mở đầu">
-                <Image
-                  key={STORY_SCENES[storyScene].image}
-                  unoptimized
-                  fill
-                  priority
-                  src={STORY_SCENES[storyScene].image}
-                  alt={STORY_SCENES[storyScene].title}
-                  className="story-image"
-                />
-                <div className="story-shade" />
-                <div
-                  className="story-progress"
-                  aria-label={`Cảnh ${storyScene + 1} trên 6`}
-                >
-                  {STORY_SCENES.map((scene, index) => (
-                    <span
-                      key={scene.image}
-                      className={index <= storyScene ? 'active' : ''}
-                    />
-                  ))}
+                <div className="story-media">
+                  <Image
+                    key={STORY_SCENES[storyScene].image}
+                    unoptimized
+                    fill
+                    priority
+                    sizes="(max-width: 760px) 100vw, calc(100vw - 400px)"
+                    src={STORY_SCENES[storyScene].image}
+                    alt={STORY_SCENES[storyScene].title}
+                    className="story-image"
+                  />
+                  <div className="story-shade" />
+                  <div
+                    className="story-progress"
+                    aria-label={`Cảnh ${storyScene + 1} trên 6`}
+                  >
+                    {STORY_SCENES.map((scene, index) => (
+                      <span
+                        key={scene.image}
+                        className={index <= storyScene ? 'active' : ''}
+                      />
+                    ))}
+                  </div>
+                  <button className="story-skip" onClick={closeStory}>
+                    Bỏ qua câu chuyện
+                  </button>
                 </div>
-                <button className="story-skip" onClick={closeStory}>
-                  Bỏ qua câu chuyện
-                </button>
                 <div className="story-copy">
                   <small>CÂU CHUYỆN MỞ ĐẦU · {storyScene + 1}/6</small>
                   <h2>{STORY_SCENES[storyScene].title}</h2>
