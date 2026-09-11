@@ -53,12 +53,52 @@ import {
   type Mode,
 } from './game-engine';
 
+const STORY_SCENES = [
+  {
+    image: '/story/scene-1.png',
+    title: 'Thế giới của những câu chuyện',
+    text: 'Ngày xửa ngày xưa, mọi người trên thế giới có thể đọc, viết và kể cho nhau nghe những câu chuyện tuyệt vời.',
+    start: 0,
+  },
+  {
+    image: '/story/scene-2.png',
+    title: 'Ngôn ngữ bị đánh cắp',
+    text: 'Đội quân quái vật xấu xa đã đánh cắp các chữ cái và từ vựng tiếng Anh.',
+    start: 7.4,
+  },
+  {
+    image: '/story/scene-3.png',
+    title: 'Một thế giới im lặng',
+    text: 'Sách trở nên trống rỗng, biển hiệu mất hết chữ và mọi người dần quên cách gọi tên mọi vật.',
+    start: 15.1,
+  },
+  {
+    image: '/story/scene-4.png',
+    title: 'Bốn người bạn đứng lên',
+    text: 'Mon, Mori, Rio và Sol lên đường cùng Wendy để mang các chữ cái trở về.',
+    start: 21.9,
+  },
+  {
+    image: '/story/scene-5.png',
+    title: 'Hành trình giải cứu từ vựng',
+    text: 'Họ phải học từ mới, đánh bại toàn bộ enemy và chiến thắng trùm cuối của mỗi vùng đất.',
+    start: 29.2,
+  },
+  {
+    image: '/story/scene-6.png',
+    title: 'Cuộc phiêu lưu bắt đầu',
+    text: 'Hai mươi sáu chữ cái. Hai mươi sáu vùng đất. Hãy chọn người bạn đồng hành và khôi phục ngôn ngữ!',
+    start: 38.2,
+  },
+] as const;
+
 export default function Home() {
   const canvas = useRef<HTMLCanvasElement>(null),
     game = useRef(createGame()),
     input = useRef({ left: false, right: false, jump: false, earth: false }),
     mutedRef = useRef(false),
-    audio = useRef<AudioContext | null>(null);
+    audio = useRef<AudioContext | null>(null),
+    storyAudio = useRef<HTMLAudioElement>(null);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
@@ -74,7 +114,10 @@ export default function Home() {
     [score, setScore] = useState(0),
     [learned, setLearned] = useState<string[]>([]),
     [earthReady, setEarthReady] = useState(false),
-    [hero, setHero] = useState<CharacterId>('mon');
+    [hero, setHero] = useState<CharacterId>('mon'),
+    [storyOpen, setStoryOpen] = useState(true),
+    [storyStarted, setStoryStarted] = useState(false),
+    [storyScene, setStoryScene] = useState(0);
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -107,6 +150,33 @@ export default function Home() {
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
+  const closeStory = useCallback(() => {
+    storyAudio.current?.pause();
+    setStoryOpen(false);
+    setStoryStarted(false);
+  }, []);
+  const beginStory = useCallback(() => {
+    stopVoice();
+    const sound = storyAudio.current;
+    if (!sound) return;
+    sound.currentTime = 0;
+    sound.muted = mutedRef.current;
+    setStoryScene(0);
+    setStoryStarted(true);
+    void sound.play();
+  }, []);
+  const nextStoryScene = useCallback(() => {
+    if (storyScene >= STORY_SCENES.length - 1) {
+      closeStory();
+      return;
+    }
+    const next = storyScene + 1;
+    setStoryScene(next);
+    if (storyAudio.current) {
+      storyAudio.current.currentTime = STORY_SCENES[next].start;
+      void storyAudio.current.play();
+    }
+  }, [closeStory, storyScene]);
   const tone = useCallback((hz: number) => {
     if (mutedRef.current) return;
     try {
@@ -434,6 +504,7 @@ export default function Home() {
             onClick={() => {
               mutedRef.current = !muted;
               setMuted(!muted);
+              if (storyAudio.current) storyAudio.current.muted = !muted;
               if (!muted) stopVoice();
             }}
           >
@@ -486,6 +557,77 @@ export default function Home() {
               height={HEIGHT}
               aria-label={`Màn ${letter}. Dùng phím trái phải di chuyển, Space để nhảy.`}
             />
+            <audio
+              ref={storyAudio}
+              src="/story/story-google-ai.wav"
+              preload="auto"
+              onTimeUpdate={(event) => {
+                if (!storyStarted) return;
+                const current = event.currentTarget.currentTime;
+                let active = 0;
+                STORY_SCENES.forEach((scene, index) => {
+                  if (current >= scene.start) active = index;
+                });
+                if (active !== storyScene) setStoryScene(active);
+              }}
+              onEnded={closeStory}
+            >
+              <track
+                kind="captions"
+                src="/story/story-vi.vtt"
+                srcLang="vi"
+                label="Tiếng Việt"
+                default
+              />
+            </audio>
+            {storyOpen && (
+              <div className="story-screen" aria-label="Câu chuyện mở đầu">
+                <Image
+                  key={STORY_SCENES[storyScene].image}
+                  unoptimized
+                  fill
+                  priority
+                  src={STORY_SCENES[storyScene].image}
+                  alt={STORY_SCENES[storyScene].title}
+                  className="story-image"
+                />
+                <div className="story-shade" />
+                <div
+                  className="story-progress"
+                  aria-label={`Cảnh ${storyScene + 1} trên 6`}
+                >
+                  {STORY_SCENES.map((scene, index) => (
+                    <span
+                      key={scene.image}
+                      className={index <= storyScene ? 'active' : ''}
+                    />
+                  ))}
+                </div>
+                <button className="story-skip" onClick={closeStory}>
+                  Bỏ qua câu chuyện
+                </button>
+                <div className="story-copy">
+                  <small>CÂU CHUYỆN MỞ ĐẦU · {storyScene + 1}/6</small>
+                  <h2>{STORY_SCENES[storyScene].title}</h2>
+                  <p>{STORY_SCENES[storyScene].text}</p>
+                  {!storyStarted ? (
+                    <button className="story-primary" onClick={beginStory}>
+                      <Play size={18} fill="currentColor" /> Bắt đầu câu chuyện
+                    </button>
+                  ) : (
+                    <button className="story-primary" onClick={nextStoryScene}>
+                      {storyScene === STORY_SCENES.length - 1
+                        ? 'Chọn nhân vật'
+                        : 'Tiếp tục'}
+                      <ChevronRight size={19} />
+                    </button>
+                  )}
+                  <span className="story-voice">
+                    Google AI Studio · Tiếng Việt
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="game-hud">
               <span aria-label={`${hp} mạng`}>
                 {'♥'.repeat(Math.max(0, hp))}

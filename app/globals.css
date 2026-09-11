@@ -279,6 +279,130 @@ a {
   color: #213d2f;
   background: linear-gradient(#e7f4da9c, #e7f4da00 90%);
 }
+.story-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  color: white;
+  background: #16251e;
+}
+.story-image {
+  object-fit: cover;
+  object-position: center;
+  animation:
+    story-arrive 700ms ease both,
+    story-drift 8s ease-in-out infinite alternate;
+}
+.story-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #07140d35 20%,
+    #07140d22 42%,
+    #07140df2 100%
+  );
+}
+.story-progress {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+.story-progress span {
+  height: 3px;
+  border-radius: 3px;
+  background: #ffffff57;
+}
+.story-progress span.active {
+  background: #ffe070;
+  box-shadow: 0 0 8px #ffd55c;
+}
+.story-skip {
+  position: absolute;
+  top: 32px;
+  right: 14px;
+  padding: 7px 10px;
+  border: 1px solid #ffffff75;
+  border-radius: 999px;
+  background: #102019b8;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+}
+.story-copy {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 23px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-shadow: 0 2px 5px #000;
+}
+.story-copy > small:first-child {
+  color: #ffe070;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}
+.story-copy h2 {
+  margin: 7px 0 8px;
+  font-size: 27px;
+  line-height: 1.05;
+}
+.story-copy p {
+  max-width: 360px;
+  min-height: 54px;
+  margin: 0 0 14px;
+  color: #fffdf3;
+  font-size: 13px;
+  line-height: 1.42;
+}
+.story-primary {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #f4cf5f;
+  color: #263c2d;
+  box-shadow: 0 6px 18px #0008;
+  font-size: 13px;
+  font-weight: 900;
+}
+.story-voice {
+  margin-top: 9px;
+  color: #d9eadc;
+  font-size: 9px;
+  font-weight: 700;
+}
+@keyframes story-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes story-drift {
+  from {
+    object-position: 47% center;
+  }
+  to {
+    object-position: 53% center;
+  }
+}
 .game-kicker {
   font-size: 10px;
   letter-spacing: 2.4px;
