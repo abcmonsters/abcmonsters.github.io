@@ -160,6 +160,8 @@ export type Game = {
   checkpointY: number;
   jumpBuffer: number;
   coyote: number;
+  doubleJumpUnlocked: boolean;
+  doubleJumpReady: boolean;
   shake: number;
   events: GameEvent[];
 };
@@ -589,6 +591,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     checkpointY: 496,
     jumpBuffer: 0,
     coyote: 0,
+    doubleJumpUnlocked: false,
+    doubleJumpReady: false,
     shake: 0,
     events: [],
   };
@@ -734,6 +738,7 @@ export function hurt(g: Game, fall = false) {
     g.player.y = g.checkpointY;
     g.player.vx = 0;
     g.player.vy = 0;
+    g.doubleJumpReady = g.doubleJumpUnlocked;
   } else {
     g.player.vy = -380;
     g.player.x = Math.max(0, g.player.x - 24);
@@ -838,6 +843,17 @@ export function updateGame(
     g.jumpBuffer = 0;
     burst(g, p.x + 21, p.y + p.h, '#ebefc1', 6);
     g.events.push({ type: 'jump' });
+  } else if (
+    g.jumpBuffer > 0 &&
+    g.doubleJumpUnlocked &&
+    g.doubleJumpReady &&
+    !p.grounded
+  ) {
+    p.vy = -590;
+    g.doubleJumpReady = false;
+    g.jumpBuffer = 0;
+    burst(g, p.x + 21, p.y + p.h / 2, '#f9d656', 12);
+    g.events.push({ type: 'jump' });
   }
   const oldBottom = p.y + p.h,
     wasGrounded = p.grounded;
@@ -860,6 +876,7 @@ export function updateGame(
       p.y = plat.y - p.h;
       p.vy = 0;
       p.grounded = true;
+      g.doubleJumpReady = g.doubleJumpUnlocked;
       const reachedNewRouteCheckpoint =
         p.x > g.checkpoint + 850 && p.x < g.worldWidth - 600;
       if (
@@ -888,13 +905,17 @@ export function updateGame(
       g.score += 100;
       burst(g, c.x, c.y, '#f9d656', 16);
       g.events.push({ type: 'collect', index });
+      if (index === 2) {
+        g.doubleJumpUnlocked = true;
+        g.doubleJumpReady = true;
+      }
       wendySay(
         g,
         index === 0
           ? 'Chữ hoa bắt được rồi!'
           : index === 1
             ? 'Chữ thường đủ bộ—mở phép!'
-            : 'Ngôi sao này sáng hơn tớ đó!',
+            : 'Có nhảy đôi rồi! Đang bay thì bấm Nhảy thêm lần nữa!',
       );
     }
   });
@@ -1842,6 +1863,18 @@ export function drawGame(
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+  if (g.mode === 'playing' && g.doubleJumpUnlocked) {
+    const label = g.doubleJumpReady
+      ? '✦ NHẢY ĐÔI SẴN SÀNG'
+      : '✦ CHẠM BỆ ĐỂ NẠP';
+    ctx.save();
+    ctx.fillStyle = g.doubleJumpReady ? '#173d30dc' : '#26342ed0';
+    ctx.beginPath();
+    ctx.roundRect(WIDTH / 2 - 80, 14, 160, 30, 15);
+    ctx.fill();
+    text(label, WIDTH / 2, 34, 10, '#fff3a8', 'Arial');
+    ctx.restore();
+  }
   if (g.mode === 'playing' && g.time < g.wendyMessageUntil) {
     const words = `Wendy: “${g.wendyMessage}”`.split(' '),
       lines: string[] = [];
