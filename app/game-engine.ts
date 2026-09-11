@@ -59,6 +59,7 @@ export type Enemy = Rect & {
   warning: number;
   origin: number;
   baseY: number;
+  platformIndex: number;
   range: number;
   speed: number;
   behavior: EnemyMotion;
@@ -284,16 +285,22 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       });
   }
   const count = 8 + Math.floor(level / 4);
-  const habitatPlatforms = platforms.filter(
+  const routePlatforms = platforms.filter(
     (platform) =>
       platform.x > 330 && platform.x < worldWidth - 600 && platform.w > 70,
   );
+  const landPlatforms = routePlatforms.filter((platform) => platform.ground);
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => {
     const noun = VOCABULARY[level][i % 3];
     const behavior = enemyMotion(noun[0]);
     const habitat = enemyHabitat(noun[0]);
+    const eligiblePlatforms =
+      habitat === 'land' ? landPlatforms : routePlatforms;
     const host =
-      habitatPlatforms[Math.floor((i / count) * habitatPlatforms.length)];
+      eligiblePlatforms[
+        Math.floor((i / count) * Math.max(1, eligiblePlatforms.length)) %
+          Math.max(1, eligiblePlatforms.length)
+      ] ?? routePlatforms[0];
     const origin =
       host.x +
       Math.min(host.w - 54, 28 + ((i * 43) % Math.max(30, host.w - 70)));
@@ -314,6 +321,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       h: 44,
       origin,
       baseY,
+      platformIndex: platforms.indexOf(host),
       range: 32 + difficulty * 18,
       speed: 0.95 + difficulty * 0.85,
       behavior,
@@ -372,20 +380,41 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       })),
     );
     const sample = enemies.map((e) => ({ ...e }));
+    const aLandPlatforms = platforms.filter(
+      (platform) => platform.ground && platform.x > 300,
+    );
     enemies.splice(
       0,
       enemies.length,
-      ...[1, 3, 5, 7, 9, 11, 13, 15, 18, 21].map((step, i) => ({
-        ...sample[i % 3],
-        x: 430 + step * 200 + 35,
-        origin: 430 + step * 200 + 35,
-        y: heights[step % heights.length] - 44,
-        baseY: heights[step % heights.length] - 44,
-        range: 22,
-        phase: i * 1.3,
-        fireTimer: 2 + (i % 3),
-        noun: VOCABULARY[0][i % 3],
-      })),
+      ...[1, 3, 5, 7, 9, 11, 13, 15, 18, 21].map((step, i) => {
+        const noun = VOCABULARY[0][i % 3],
+          behavior = enemyMotion(noun[0]),
+          habitat = enemyHabitat(noun[0]),
+          skyHost = platforms.find(
+            (platform) =>
+              !platform.ground && Math.abs(platform.x - (430 + step * 200)) < 4,
+          ),
+          host =
+            habitat === 'land'
+              ? aLandPlatforms[i % aLandPlatforms.length]
+              : (skyHost ?? aLandPlatforms[i % aLandPlatforms.length]),
+          x = host.x + Math.min(host.w - 54, 35 + (i % 2) * 42),
+          baseY = host.y - 44;
+        return {
+          ...sample[i % 3],
+          x,
+          origin: x,
+          y: behavior === 'drop' ? baseY - 150 : baseY,
+          baseY,
+          platformIndex: platforms.indexOf(host),
+          range: Math.min(70, Math.max(22, host.w / 2 - 35)),
+          phase: i * 1.3,
+          fireTimer: 2 + (i % 3),
+          noun,
+          behavior,
+          habitat,
+        };
+      }),
     );
   }
   const interactivePlatforms = platforms.filter(
@@ -791,11 +820,14 @@ export function updateGame(
   }
   for (const e of g.enemies) {
     if (e.dead) continue;
+    const ground = g.platforms[e.platformIndex];
+    if (ground && !['fly', 'swim', 'hover'].includes(e.behavior)) {
+      e.origin += ground.dx;
+      e.baseY = ground.y - e.h;
+      if (e.behavior === 'drop' && e.dropState === 'ready') e.y = e.baseY - 150;
+    }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = Math.abs(distance) < (e.alert ? 1000 : 470 + g.difficulty * 100);
-    const ground = g.platforms.find(
-      (q) => e.origin >= q.baseX && e.origin < q.baseX + q.w,
-    );
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low = airborne(e.behavior)
       ? 20

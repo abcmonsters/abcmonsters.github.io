@@ -59,7 +59,7 @@ export function drawPlatformArt(
   const image = images.get(kind);
   if (!image?.complete || !image.naturalWidth) return false;
   const height = platform.ground
-    ? Math.max(54, platform.h)
+    ? Math.max(54, platform.h + 28)
     : kind === 'lotus'
       ? 48
       : kind === 'cloud'
@@ -74,7 +74,7 @@ export function drawPlatformArt(
   ctx.drawImage(
     image,
     screenX - (platform.ground ? 0 : 6),
-    platform.y - (platform.ground ? 1 : 8),
+    platform.y - (platform.ground ? 28 : 8),
     platform.w + (platform.ground ? 0 : 12),
     height,
   );
