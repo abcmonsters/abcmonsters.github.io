@@ -64,31 +64,31 @@ const STORY_SCENES = [
     image: '/story/scene-2.png',
     title: 'Ngôn ngữ bị đánh cắp',
     text: 'Đội quân quái vật xấu xa đã đánh cắp các chữ cái và từ vựng tiếng Anh.',
-    start: 7.4,
+    start: 9.45,
   },
   {
     image: '/story/scene-3.png',
     title: 'Một thế giới im lặng',
     text: 'Sách trở nên trống rỗng, biển hiệu mất hết chữ và mọi người dần quên cách gọi tên mọi vật.',
-    start: 15.1,
+    start: 21.6,
   },
   {
     image: '/story/scene-4.png',
     title: 'Bốn người bạn đứng lên',
     text: 'Mon, Mori, Rio và Sol lên đường cùng Wendy để mang các chữ cái trở về.',
-    start: 21.9,
+    start: 29.62,
   },
   {
     image: '/story/scene-5.png',
     title: 'Hành trình giải cứu từ vựng',
     text: 'Họ phải học từ mới, đánh bại toàn bộ enemy và chiến thắng trùm cuối của mỗi vùng đất.',
-    start: 29.2,
+    start: 43.81,
   },
   {
     image: '/story/scene-6.png',
     title: 'Cuộc phiêu lưu bắt đầu',
     text: 'Hai mươi sáu chữ cái. Hai mươi sáu vùng đất. Hãy chọn người bạn đồng hành và khôi phục ngôn ngữ!',
-    start: 38.2,
+    start: 61.27,
   },
 ] as const;
 
@@ -559,7 +559,7 @@ export default function Home() {
             />
             <audio
               ref={storyAudio}
-              src="/story/story-google-ai.wav"
+              src="/story/story-google-ai-v2.wav"
               preload="auto"
               onTimeUpdate={(event) => {
                 if (!storyStarted) return;
