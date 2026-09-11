@@ -287,10 +287,7 @@ a {
   z-index: 1000;
   overflow: hidden;
   color: white;
-  background:
-    linear-gradient(#07140d38, #07140d73),
-    url('/story/starry-long-screen-bg.jpg') center / cover no-repeat,
-    #16251e;
+  background: #16251e;
 }
 .story-image {
   position: absolute;
