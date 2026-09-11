@@ -89,6 +89,29 @@ const STORY_SCENES = [
   },
 ] as const;
 
+const ENDING_SCENES = [
+  {
+    image: '/story/ending/scene-1.png',
+    title: 'Hai mươi sáu chữ cái trở về',
+    text: 'Khi trùm cuối cùng bị đánh bại, những chữ cái sáng rực bay về thư viện của thế giới.',
+  },
+  {
+    image: '/story/ending/scene-2.png',
+    title: 'Mọi người lại gọi tên vạn vật',
+    text: 'Sách có chữ trở lại, biển hiệu hiện tên và tiếng cười vang lên khắp những con phố Việt Nam.',
+  },
+  {
+    image: '/story/ending/scene-3.png',
+    title: 'Câu chuyện lại được kể',
+    text: 'Mon, Mori, Rio, Sol và Wendy cùng các bạn nhỏ đọc những câu chuyện mới bằng tất cả từ vựng đã tìm được.',
+  },
+  {
+    image: '/story/ending/scene-4.png',
+    title: 'Người giữ chữ cái mới',
+    text: 'Từ hôm ấy, thế giới không còn sợ mất ngôn ngữ nữa—vì đã có bạn bảo vệ đủ A đến Z!',
+  },
+] as const;
+
 const usesDesktopStoryClips = () =>
   window.matchMedia('(min-width: 901px)').matches;
 
@@ -119,7 +142,10 @@ export default function Home() {
     [hero, setHero] = useState<CharacterId>('mon'),
     [storyOpen, setStoryOpen] = useState(true),
     [storyStarted, setStoryStarted] = useState(false),
-    [storyScene, setStoryScene] = useState(0);
+    [storyScene, setStoryScene] = useState(0),
+    [endingOpen, setEndingOpen] = useState(false),
+    [endingStarted, setEndingStarted] = useState(false),
+    [endingScene, setEndingScene] = useState(0);
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -151,6 +177,42 @@ export default function Home() {
     }[hero];
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
+  }, []);
+  const narrateEnding = useCallback((scene: number) => {
+    if (mutedRef.current || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(ENDING_SCENES[scene].text);
+    utterance.lang = 'vi-VN';
+    utterance.rate = 0.88;
+    window.speechSynthesis.speak(utterance);
+  }, []);
+  const closeEnding = useCallback(() => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setEndingOpen(false);
+    setEndingStarted(false);
+    try {
+      localStorage.setItem('mon-alphabet-ending-seen', 'true');
+    } catch {}
+  }, []);
+  const beginEnding = useCallback(() => {
+    stopVoice();
+    setEndingScene(0);
+    setEndingStarted(true);
+    narrateEnding(0);
+  }, [narrateEnding]);
+  const nextEndingScene = useCallback(() => {
+    if (endingScene >= ENDING_SCENES.length - 1) {
+      closeEnding();
+      return;
+    }
+    const next = endingScene + 1;
+    setEndingScene(next);
+    narrateEnding(next);
+  }, [closeEnding, endingScene, narrateEnding]);
+  const replayEnding = useCallback(() => {
+    setEndingScene(0);
+    setEndingStarted(false);
+    setEndingOpen(true);
   }, []);
   const closeStory = useCallback(() => {
     storyAudio.current?.pause();
@@ -505,6 +567,18 @@ export default function Home() {
     changeMode('won');
     say(`${letter} is for ${word[0]}`);
     tone(880);
+    if (next.length === 26) {
+      let endingSeen = false;
+      try {
+        endingSeen =
+          localStorage.getItem('mon-alphabet-ending-seen') === 'true';
+      } catch {}
+      if (!endingSeen) {
+        setEndingScene(0);
+        setEndingStarted(false);
+        setEndingOpen(true);
+      }
+    }
   }
   function submitTypedAnswer(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -699,6 +773,57 @@ export default function Home() {
                     <button className="story-primary" onClick={nextStoryScene}>
                       {storyScene === STORY_SCENES.length - 1
                         ? 'Chọn nhân vật'
+                        : 'Tiếp tục'}
+                      <ChevronRight size={19} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {endingOpen && (
+              <div
+                className="story-screen ending-story"
+                aria-label="Câu chuyện kết thúc"
+              >
+                <Image
+                  key={ENDING_SCENES[endingScene].image}
+                  unoptimized
+                  fill
+                  priority
+                  src={ENDING_SCENES[endingScene].image}
+                  alt={ENDING_SCENES[endingScene].title}
+                  className="story-image"
+                />
+                <div className="story-shade" />
+                <div
+                  className="story-progress"
+                  aria-label={`Cảnh ${endingScene + 1} trên ${ENDING_SCENES.length}`}
+                  style={{
+                    gridTemplateColumns: `repeat(${ENDING_SCENES.length}, 1fr)`,
+                  }}
+                >
+                  {ENDING_SCENES.map((scene, index) => (
+                    <span
+                      key={scene.image}
+                      className={index <= endingScene ? 'active' : ''}
+                    />
+                  ))}
+                </div>
+                <button className="story-skip" onClick={closeEnding}>
+                  Bỏ qua đoạn kết
+                </button>
+                <div className="story-copy">
+                  <small>CHƯƠNG CUỐI · {endingScene + 1}/4</small>
+                  <h2>{ENDING_SCENES[endingScene].title}</h2>
+                  <p>{ENDING_SCENES[endingScene].text}</p>
+                  {!endingStarted ? (
+                    <button className="story-primary" onClick={beginEnding}>
+                      <Play size={18} fill="currentColor" /> Xem đoạn kết
+                    </button>
+                  ) : (
+                    <button className="story-primary" onClick={nextEndingScene}>
+                      {endingScene === ENDING_SCENES.length - 1
+                        ? 'Hoàn thành hành trình'
                         : 'Tiếp tục'}
                       <ChevronRight size={19} />
                     </button>
@@ -1025,6 +1150,12 @@ export default function Home() {
                   <RotateCcw size={16} />
                   Chơi lại, nhặt đủ sao
                 </button>
+                {completed.length === 26 && (
+                  <button className="text-button" onClick={replayEnding}>
+                    <Play size={16} />
+                    Xem lại câu chuyện kết thúc
+                  </button>
+                )}
               </div>
             )}
             {mode === 'lost' && (
