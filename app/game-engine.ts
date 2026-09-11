@@ -296,14 +296,15 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     const habitat = enemyHabitat(noun[0]);
     const eligiblePlatforms =
       habitat === 'land' ? landPlatforms : routePlatforms;
-    const host =
-      eligiblePlatforms[
-        Math.floor((i / count) * Math.max(1, eligiblePlatforms.length)) %
-          Math.max(1, eligiblePlatforms.length)
-      ] ?? routePlatforms[0];
-    const origin =
-      host.x +
-      Math.min(host.w - 54, 28 + ((i * 43) % Math.max(30, host.w - 70)));
+    // Round-robin keeps consecutive vocabulary enemies on separate islands.
+    // When a route repeats, divide the available width into stable slots so
+    // two enemies never spawn on the same point.
+    const hostCount = Math.max(1, eligiblePlatforms.length),
+      host = eligiblePlatforms[i % hostCount] ?? routePlatforms[0],
+      visit = Math.floor(i / hostCount),
+      visits = Math.ceil(count / hostCount),
+      usableWidth = Math.max(16, host.w - 76),
+      origin = host.x + 28 + (usableWidth * (visit + 1)) / (visits + 1);
     const baseY =
       behavior === 'fly' || behavior === 'hover'
         ? 300 + (i % 3) * 48
@@ -1456,9 +1457,11 @@ export function drawGame(
     // Raster enemies contain a small transparent foot margin. Sink grounded
     // artwork into the illustrated surface while keeping collision geometry
     // unchanged, so paws/feet visually meet the grass or platform edge.
-    const enemyFootOffset = airborne(e.behavior)
-      ? 0
-      : Math.max(0, 18 * (1 - Math.min(1, (e.baseY - e.y) / 28)));
+    const hostPlatform = g.platforms[e.platformIndex],
+      contactDepth = hostPlatform?.ground ? 18 : 7,
+      enemyFootOffset = airborne(e.behavior)
+        ? 0
+        : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
     ctx.translate(x + e.w / 2, e.y + e.h + enemyFootOffset);
     if (e.dead) {
       ctx.globalAlpha = 1 - age / 0.45;
@@ -1693,7 +1696,15 @@ export function drawGame(
     ctx.save();
     // The source character sprites have transparent pixels below their feet.
     // Apply the correction only while grounded so jump height remains honest.
-    const heroFootOffset = p.grounded ? 20 : 0;
+    const standingPlatform = p.grounded
+        ? g.platforms.find(
+            (platform) =>
+              Math.abs(p.y + p.h - platform.y) < 3 &&
+              p.x + p.w > platform.x &&
+              p.x < platform.x + platform.w,
+          )
+        : undefined,
+      heroFootOffset = p.grounded ? (standingPlatform?.ground ? 20 : 7) : 0;
     ctx.translate(px + 21, p.y + p.h - bob + heroFootOffset);
     ctx.rotate(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
