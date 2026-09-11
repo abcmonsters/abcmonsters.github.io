@@ -500,9 +500,7 @@ export default function Home() {
     </div>
   );
   return (
-    <main
-      className={`app-shell ${mode === 'playing' || mode === 'ready' ? 'is-fullscreen' : ''}`}
-    >
+    <main className="app-shell is-fullscreen">
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Mon Alphabet Adventure">
           mon<span>✦</span>
@@ -669,6 +667,33 @@ export default function Home() {
                     <Pause size={17} />
                   </button>
                 )}
+              </div>
+            )}
+            {(mode === 'ready' || mode === 'playing') && (
+              <div className="game-utility-overlay" aria-label="Công cụ game">
+                <button
+                  type="button"
+                  aria-label="Chọn màn chơi"
+                  onClick={() => {
+                    if (mode === 'playing') changeMode('paused');
+                    setMapOpen(true);
+                  }}
+                >
+                  <Map size={18} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                  aria-pressed={!muted}
+                  onClick={() => {
+                    mutedRef.current = !muted;
+                    setMuted(!muted);
+                    if (storyAudio.current) storyAudio.current.muted = !muted;
+                    if (!muted) stopVoice();
+                  }}
+                >
+                  {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                </button>
               </div>
             )}
             {notice && mode === 'playing' && (
