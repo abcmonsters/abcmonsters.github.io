@@ -70,19 +70,20 @@ export function drawPlatformArt(
         : kind === 'lantern'
           ? 54
           : 42;
-  // Align the first visible pixel row of each source image with the physical
-  // collision surface. This makes every individual platform use the same
-  // truthful y coordinate regardless of its image padding or drawn height.
-  const sourceTop = {
-      cloud: 30 / 170,
-      bamboo: 18 / 170,
-      lotus: 0,
-      mountain: 25 / 190,
-      ceramic: 23 / 190,
-      earth: 0,
-      lantern: 7 / 190,
+  // Each illustration has leaves, flowers, curled ends, or lamps above its
+  // actual walkable line. These measured source-image rows are the surface a
+  // foot should touch, so every platform instance shares its collision y with
+  // the visible top instead of with decorative transparent/extending pixels.
+  const sourceSurface = {
+      cloud: 40 / 170,
+      bamboo: 48 / 170,
+      lotus: 28 / 170,
+      mountain: 55 / 190,
+      ceramic: 25 / 190,
+      earth: 50 / 190,
+      lantern: 17 / 190,
     }[kind],
-    drawY = platform.y - sourceTop * height;
+    drawY = platform.y - sourceSurface * height;
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   if (platform.motion === 'fall' && platform.fallDelay >= 0)
