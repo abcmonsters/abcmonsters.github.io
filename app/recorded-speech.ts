@@ -22,6 +22,11 @@ export function voiceSpeaking() {
       !window.speechSynthesis.paused)
   );
 }
+export function voiceLabel(level: number) {
+  return clips[String.fromCharCode(97 + level)]
+    ? 'Google AI Studio · Kore · English'
+    : 'Giọng tiếng Anh của thiết bị';
+}
 export function speakVoice(phrase: string) {
   stopVoice();
   const token = generation;

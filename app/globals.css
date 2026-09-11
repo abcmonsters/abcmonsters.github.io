@@ -290,10 +290,6 @@ a {
   background: #16251e;
 }
 .story-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   object-fit: contain;
   object-position: center;
   animation: story-arrive 700ms ease both;
