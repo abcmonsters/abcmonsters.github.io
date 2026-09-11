@@ -12,6 +12,7 @@ import { drawEarthRock } from './earth-art';
 import { drawCharacterArt, type CharacterId } from './character-art';
 import { drawElementProjectile } from './element-art';
 import { drawWendy } from './wendy-art';
+import { drawPlatformArt } from './platform-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -244,6 +245,33 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     for (let i = 0; i < 6; i++)
       add(start + i * 150, 442 + (i % 2) * 35, 92, 20, false, i === 2);
   }
+  // Remove same-lane overlaps created when a habitat route crosses a reward route.
+  // Platforms carrying a letter or food are always preserved.
+  const keptPlatforms: Platform[] = [];
+  for (const platform of [...platforms].sort(
+    (a, b) => a.x - b.x || a.y - b.y,
+  )) {
+    const essential =
+      pickups.some(
+        (pickup) =>
+          pickup.x >= platform.x && pickup.x <= platform.x + platform.w,
+      ) ||
+      foods.some(
+        (food) => food.x >= platform.x && food.x <= platform.x + platform.w,
+      );
+    const redundant = keptPlatforms.some((other) => {
+      if (platform.ground || other.ground) return false;
+      const overlap =
+        Math.min(platform.x + platform.w, other.x + other.w) -
+        Math.max(platform.x, other.x);
+      return (
+        Math.abs(platform.y - other.y) < 34 &&
+        overlap > Math.min(platform.w, other.w) * 0.55
+      );
+    });
+    if (!redundant || essential) keptPlatforms.push(platform);
+  }
+  platforms.splice(0, platforms.length, ...keptPlatforms);
   if (level >= 3) {
     const movingEvery = Math.max(4, 7 - Math.floor(level / 6));
     platforms
@@ -305,9 +333,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     platforms.length = 0;
     add(0, 550, 350, 100, true);
     const heights = [480, 412, 350, 412, 478, 420, 360];
-    for (let i = 0; i < 28; i++)
+    for (let i = 0; i < 24; i++)
       add(
-        430 + i * 170,
+        430 + i * 200,
         heights[i % heights.length],
         i < 14 ? 126 : 112,
         25,
@@ -324,8 +352,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     pickups.splice(
       0,
       pickups.length,
-      ...[3, 14, 24].map((i) => ({
-        x: 430 + i * 170 + 48,
+      ...[3, 12, 21].map((i) => ({
+        x: 430 + i * 200 + 48,
         y: heights[i % heights.length] - 48,
         got: false,
       })),
@@ -333,8 +361,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     foods.splice(
       0,
       foods.length,
-      ...[6, 17, 25].map((i, j) => ({
-        x: 430 + i * 170 + 38,
+      ...[6, 15, 22].map((i, j) => ({
+        x: 430 + i * 200 + 38,
         y: heights[i % heights.length] - 36,
         w: 34,
         h: 34,
@@ -347,10 +375,10 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     enemies.splice(
       0,
       enemies.length,
-      ...[1, 4, 7, 10, 13, 16, 19, 22, 24, 26].map((step, i) => ({
+      ...[1, 3, 5, 7, 9, 11, 13, 15, 18, 21].map((step, i) => ({
         ...sample[i % 3],
-        x: 430 + step * 170 + 35,
-        origin: 430 + step * 170 + 35,
+        x: 430 + step * 200 + 35,
+        origin: 430 + step * 200 + 35,
         y: heights[step % heights.length] - 44,
         baseY: heights[step % heights.length] - 44,
         range: 22,
@@ -1261,24 +1289,27 @@ export function drawGame(
             : g.sky
               ? '#f4f4df'
               : palette.grass;
-    rect(x + 6, p.y + 7, p.w, p.h, '#35513044');
-    rect(
-      x,
-      p.y,
-      p.w,
-      p.h,
-      p.motion === 'water'
-        ? '#2e9aaa'
-        : g.sky && !p.ground
-          ? '#86a4a1'
-          : palette.soil,
-    );
-    rect(x, p.y, p.w, 12, platformTop);
-    rect(x, p.y + 12, p.w, 5, '#304b3340');
-    for (let a = 0; a < p.w; a += 28) {
-      rect(x + a, p.y + 5, 16, 5, '#f4f8d544');
-      for (let b = 23; b < p.h; b += 25)
-        rect(x + a + 4, p.y + b, 12, 7, '#3a343226');
+    const painted = drawPlatformArt(ctx, p, x, g.sky);
+    if (!painted) {
+      rect(x + 6, p.y + 7, p.w, p.h, '#35513044');
+      rect(
+        x,
+        p.y,
+        p.w,
+        p.h,
+        p.motion === 'water'
+          ? '#2e9aaa'
+          : g.sky && !p.ground
+            ? '#86a4a1'
+            : palette.soil,
+      );
+      rect(x, p.y, p.w, 12, platformTop);
+      rect(x, p.y + 12, p.w, 5, '#304b3340');
+      for (let a = 0; a < p.w; a += 28) {
+        rect(x + a, p.y + 5, 16, 5, '#f4f8d544');
+        for (let b = 23; b < p.h; b += 25)
+          rect(x + a + 4, p.y + b, 12, 7, '#3a343226');
+      }
     }
     if (p.motion === 'horizontal')
       text('↔', x + p.w / 2, p.y + 25, 18, '#fcf0c4');

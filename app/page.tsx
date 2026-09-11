@@ -4,6 +4,7 @@ import { loadSceneArt } from './scene-art';
 import { loadEarthArt } from './earth-art';
 import { loadElementArt } from './element-art';
 import { loadWendyArt } from './wendy-art';
+import { loadPlatformArt } from './platform-art';
 import {
   CHARACTERS,
   loadCharacterArt,
@@ -314,6 +315,7 @@ export default function Home() {
         loadCharacterArt(),
         loadElementArt(),
         loadWendyArt(),
+        loadPlatformArt(),
       ])
         .then(() => {
           if (active) setLoaded(true);
