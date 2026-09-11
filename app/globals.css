@@ -1309,13 +1309,41 @@ footer span {
   font-size: 12px;
   margin: 5px 0 20px;
 }
+.map-screen-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #071a12b8;
+  backdrop-filter: blur(7px);
+}
 .map-dialog {
+  position: relative;
+  width: min(390px, calc(100vw - 32px));
+  margin: 0;
   background: #203b30 !important;
   color: #f4f8df !important;
   border: 1px solid #627c51;
   border-radius: 20px !important;
   padding: 28px !important;
   max-width: 390px !important;
+}
+.map-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #ffffff2e;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #ffffff12;
+  color: #f1f5d9;
 }
 .map-title {
   font-size: 23px;

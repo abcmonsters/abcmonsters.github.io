@@ -35,13 +35,8 @@ import {
   Map,
   Check,
   ChevronRight,
+  X,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import {
   createGame,
   updateGame,
@@ -1151,18 +1146,42 @@ export default function Home() {
       <footer>
         ĐƯỢC TẠO CHO NHỮNG NHÀ THÁM HIỂM NHÍ <span>✦</span> CHƠI & HỌC MỖI NGÀY
       </footer>
-      <Dialog open={mapOpen} onOpenChange={setMapOpen}>
-        <DialogContent className="map-dialog">
-          <DialogTitle className="map-title">Chọn chuyến phiêu lưu</DialogTitle>
-          <DialogDescription className="map-description">
-            {completed.length}/26 chữ đã học. Chọn bất kỳ chữ nào để khám phá!
-          </DialogDescription>
-          {alphabet}
-          <p className="map-legend">
-            <span className="world-dot" /> Chữ có chấm xanh: đã hoàn thành
-          </p>
-        </DialogContent>
-      </Dialog>
+      {mapOpen && (
+        <div
+          className="map-screen-backdrop"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setMapOpen(false);
+          }}
+        >
+          <dialog
+            open
+            className="map-dialog"
+            aria-modal="true"
+            aria-labelledby="map-title"
+            aria-describedby="map-description"
+          >
+            <button
+              type="button"
+              className="map-close"
+              aria-label="Đóng bảng chọn màn"
+              onClick={() => setMapOpen(false)}
+            >
+              <X size={22} />
+            </button>
+            <h2 id="map-title" className="map-title">
+              Chọn chuyến phiêu lưu
+            </h2>
+            <p id="map-description" className="map-description">
+              {completed.length}/26 chữ đã học. Chọn bất kỳ chữ nào để khám phá!
+            </p>
+            {alphabet}
+            <p className="map-legend">
+              <span className="world-dot" /> Chữ có chấm xanh: đã hoàn thành
+            </p>
+          </dialog>
+        </div>
+      )}
     </main>
   );
 }
