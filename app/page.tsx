@@ -500,7 +500,9 @@ export default function Home() {
     </div>
   );
   return (
-    <main className={`app-shell ${mode === 'playing' ? 'is-playing' : ''}`}>
+    <main
+      className={`app-shell ${mode === 'playing' || mode === 'ready' ? 'is-fullscreen' : ''}`}
+    >
       <header className="topbar">
         <Link className="brand" href="/" aria-label="Mon Alphabet Adventure">
           mon<span>✦</span>
@@ -650,23 +652,25 @@ export default function Home() {
                 </div>
               </div>
             )}
-            <div className="game-hud">
-              <span aria-label={`${hp} mạng`}>
-                {'♥'.repeat(Math.max(0, hp))}
-                <span style={{ opacity: 0.25 }}>
-                  {'♥'.repeat(3 - Math.max(0, hp))}
+            {mode !== 'ready' && (
+              <div className="game-hud">
+                <span aria-label={`${hp} mạng`}>
+                  {'♥'.repeat(Math.max(0, hp))}
+                  <span style={{ opacity: 0.25 }}>
+                    {'♥'.repeat(3 - Math.max(0, hp))}
+                  </span>
                 </span>
-              </span>
-              <span className="hud-score">✦ {stars} / 3</span>
-              {mode === 'playing' && (
-                <button
-                  aria-label="Tạm dừng"
-                  onClick={() => changeMode('paused')}
-                >
-                  <Pause size={17} />
-                </button>
-              )}
-            </div>
+                <span className="hud-score">✦ {stars} / 3</span>
+                {mode === 'playing' && (
+                  <button
+                    aria-label="Tạm dừng"
+                    onClick={() => changeMode('paused')}
+                  >
+                    <Pause size={17} />
+                  </button>
+                )}
+              </div>
+            )}
             {notice && mode === 'playing' && (
               <output className="pickup-notice">{notice}</output>
             )}

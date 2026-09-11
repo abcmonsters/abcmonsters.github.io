@@ -590,10 +590,27 @@ a {
   box-shadow: 0 0 0 3px #f2c45d40;
 }
 .character-picker img {
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
   filter: drop-shadow(0 4px 2px #2941252d);
+  scale: var(--character-scale, 1);
+  transform-origin: center bottom;
+}
+.character-mon img {
+  --character-scale: 0.94;
+}
+.character-mori img {
+  --character-scale: 0.9;
+}
+.character-rio img {
+  --character-scale: 1.16;
+}
+.character-sol img {
+  --character-scale: 0.82;
+}
+.character-picker button.selected img {
+  animation: selected-character 1.7s ease-in-out infinite;
 }
 .character-picker b {
   font-size: 11px;
@@ -1315,8 +1332,23 @@ footer span {
     transform: translateY(-8px) rotate(2deg);
   }
 }
+@keyframes selected-character {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  45% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+  70% {
+    transform: translateY(-2px) rotate(-1deg);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .mon-intro img {
+    animation: none;
+  }
+  .character-picker button.selected img {
     animation: none;
   }
   * {
@@ -1439,23 +1471,23 @@ footer span {
 }
 
 @media (max-width: 900px) {
-  .app-shell.is-playing {
+  .app-shell.is-fullscreen {
     width: 100vw;
     min-height: 100dvh;
     padding: 0;
     overflow: hidden;
     background: #0d2a20;
   }
-  .app-shell.is-playing .topbar,
-  .app-shell.is-playing .journey,
-  .app-shell.is-playing .lesson,
-  .app-shell.is-playing .level-heading,
-  .app-shell.is-playing .keyboard-note,
-  .app-shell.is-playing footer {
+  .app-shell.is-fullscreen .topbar,
+  .app-shell.is-fullscreen .journey,
+  .app-shell.is-fullscreen .lesson,
+  .app-shell.is-fullscreen .level-heading,
+  .app-shell.is-fullscreen .keyboard-note,
+  .app-shell.is-fullscreen footer {
     display: none;
   }
-  .app-shell.is-playing .game-layout,
-  .app-shell.is-playing .game-column {
+  .app-shell.is-fullscreen .game-layout,
+  .app-shell.is-fullscreen .game-column {
     width: 100vw;
     height: 100dvh;
     min-height: 100dvh;
@@ -1463,7 +1495,7 @@ footer span {
     padding: 0;
     display: block;
   }
-  .app-shell.is-playing .game-frame {
+  .app-shell.is-fullscreen .game-frame {
     position: fixed;
     inset: 0;
     width: 100vw;
@@ -1475,21 +1507,21 @@ footer span {
     border-radius: 0;
     box-shadow: none;
   }
-  .app-shell.is-playing .game-frame canvas {
+  .app-shell.is-fullscreen .game-frame canvas {
     width: 100vw;
     height: 100dvh;
     border-radius: 0;
   }
-  .app-shell.is-playing .game-hud {
+  .app-shell.is-fullscreen .game-hud {
     top: max(14px, env(safe-area-inset-top));
     left: 14px;
     right: 14px;
   }
-  .app-shell.is-playing .game-vocab-overlay {
+  .app-shell.is-fullscreen .game-vocab-overlay {
     top: max(72px, calc(env(safe-area-inset-top) + 62px));
     right: 8px;
   }
-  .app-shell.is-playing .game-controls-overlay {
+  .app-shell.is-fullscreen .game-controls-overlay {
     bottom: max(14px, env(safe-area-inset-bottom));
   }
 }
