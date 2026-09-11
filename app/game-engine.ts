@@ -1453,7 +1453,13 @@ export function drawGame(
     }
     if (x < -100 || x > WIDTH + 100) continue;
     ctx.save();
-    ctx.translate(x + e.w / 2, e.y + e.h);
+    // Raster enemies contain a small transparent foot margin. Sink grounded
+    // artwork into the illustrated surface while keeping collision geometry
+    // unchanged, so paws/feet visually meet the grass or platform edge.
+    const enemyFootOffset = airborne(e.behavior)
+      ? 0
+      : Math.max(0, 18 * (1 - Math.min(1, (e.baseY - e.y) / 28)));
+    ctx.translate(x + e.w / 2, e.y + e.h + enemyFootOffset);
     if (e.dead) {
       ctx.globalAlpha = 1 - age / 0.45;
       ctx.rotate(age * 5);
@@ -1685,7 +1691,10 @@ export function drawGame(
       sy -= p.landing * 1.2;
     }
     ctx.save();
-    ctx.translate(px + 21, p.y + p.h - bob);
+    // The source character sprites have transparent pixels below their feet.
+    // Apply the correction only while grounded so jump height remains honest.
+    const heroFootOffset = p.grounded ? 20 : 0;
+    ctx.translate(px + 21, p.y + p.h - bob + heroFootOffset);
     ctx.rotate(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
     );
