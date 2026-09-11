@@ -492,7 +492,7 @@ export default function Home() {
     }
     setQuizRound(3);
     setQuizInput('');
-    setQuizHint('Gõ chính xác từ tiếng Anh để hoàn thành màn!');
+    setQuizHint('Còn 2 câu gõ từ chính xác để hoàn thành màn!');
     say(VOCABULARY[level][0][0]);
     tone(700);
   }
@@ -508,10 +508,19 @@ export default function Home() {
   }
   function submitTypedAnswer(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    const expected = VOCABULARY[level][0][0];
+    const typingIndex = quizRound - 3,
+      expected = VOCABULARY[level][typingIndex][0];
     if (quizInput.trim().toLocaleLowerCase('en') !== expected.toLowerCase()) {
       setQuizHint('Chưa chính xác. Nghe lại rồi kiểm tra từng chữ nhé!');
       tone(180);
+      return;
+    }
+    if (quizRound === 3) {
+      setQuizRound(4);
+      setQuizInput('');
+      setQuizHint('Đúng rồi! Gõ chính xác thêm một từ nữa nhé.');
+      say(VOCABULARY[level][1][0]);
+      tone(700);
       return;
     }
     setQuizHint('Chính xác!');
@@ -860,7 +869,7 @@ export default function Home() {
             {mode === 'quiz' && (
               <div className="state-screen quiz-screen">
                 <span className="game-kicker">
-                  TRÙM {letter} · CÂU {quizRound + 1}/4
+                  TRÙM {letter} · CÂU {quizRound + 1}/5
                 </span>
                 <span className="quiz-letter">
                   {letter}
@@ -870,7 +879,9 @@ export default function Home() {
                   <Image
                     unoptimized
                     src={nounArtPath(
-                      VOCABULARY[level][quizRound === 3 ? 0 : quizRound][0],
+                      VOCABULARY[level][
+                        quizRound >= 3 ? quizRound - 3 : quizRound
+                      ][0],
                     )}
                     alt=""
                     width={64}
@@ -878,20 +889,24 @@ export default function Home() {
                   />
                 </h2>
                 <p>
-                  {quizRound === 3
-                    ? `Hãy gõ tên tiếng Anh của “${VOCABULARY[level][0][1]}”.`
+                  {quizRound >= 3
+                    ? `Hãy gõ tên tiếng Anh của “${VOCABULARY[level][quizRound - 3][1]}”.`
                     : `Từ nào có nghĩa là “${VOCABULARY[level][quizRound][1]}”?`}
                 </p>
                 <button
                   className="listen-button"
                   onClick={() =>
-                    say(VOCABULARY[level][quizRound === 3 ? 0 : quizRound][0])
+                    say(
+                      VOCABULARY[level][
+                        quizRound >= 3 ? quizRound - 3 : quizRound
+                      ][0],
+                    )
                   }
                 >
                   <Volume2 size={18} />
                   Nghe gợi ý
                 </button>
-                {quizRound === 3 ? (
+                {quizRound >= 3 ? (
                   <form className="quiz-typing" onSubmit={submitTypedAnswer}>
                     <label htmlFor="quiz-word">Gõ từ tiếng Anh</label>
                     <input
@@ -901,7 +916,7 @@ export default function Home() {
                       autoComplete="off"
                       autoCapitalize="none"
                       spellCheck={false}
-                      enterKeyHint="done"
+                      enterKeyHint={quizRound === 3 ? 'next' : 'done'}
                       placeholder={`${letter.toLowerCase()}...`}
                       aria-describedby="quiz-feedback"
                     />
@@ -923,7 +938,10 @@ export default function Home() {
                   </div>
                 )}
                 <output id="quiz-feedback" className="quiz-hint">
-                  {quizHint || 'Chọn một đáp án bên trên nhé.'}
+                  {quizHint ||
+                    (quizRound >= 3
+                      ? 'Gõ đúng từng chữ rồi nhấn Kiểm tra nhé.'
+                      : 'Chọn một đáp án bên trên nhé.')}
                 </output>
               </div>
             )}
