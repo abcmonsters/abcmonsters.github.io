@@ -26,6 +26,12 @@ export type Platform = Rect & {
   baseY: number;
   moving?: boolean;
   dx: number;
+  dy: number;
+  motion: 'static' | 'horizontal' | 'vertical' | 'water' | 'fall';
+  motionPhase: number;
+  fallDelay: number;
+  falling: boolean;
+  resetTimer: number;
 };
 export type Mode = 'ready' | 'playing' | 'paused' | 'quiz' | 'won' | 'lost';
 export type GameEvent = {
@@ -154,7 +160,23 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     ground = false,
     moving = false,
   ) =>
-    platforms.push({ x, y, w, h, ground, moving, baseX: x, baseY: y, dx: 0 });
+    platforms.push({
+      x,
+      y,
+      w,
+      h,
+      ground,
+      moving,
+      baseX: x,
+      baseY: y,
+      dx: 0,
+      dy: 0,
+      motion: moving ? 'horizontal' : 'static',
+      motionPhase: x * 0.013 + y * 0.007,
+      fallDelay: -1,
+      falling: false,
+      resetTimer: 0,
+    });
   add(0, 550, first, 100, true);
   add(first + gap, 550, second - first - gap, 100, true);
   let routeX = second + gap;
@@ -338,6 +360,26 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       })),
     );
   }
+  const interactivePlatforms = platforms.filter(
+    (platform) =>
+      !platform.ground && platform.x > 700 && platform.x < worldWidth - 700,
+  );
+  interactivePlatforms.forEach((platform, index) => {
+    if (platform.moving) {
+      const cycle = level === 0 ? index % 3 : (index + level) % 4;
+      platform.motion =
+        cycle === 0
+          ? 'horizontal'
+          : cycle === 1
+            ? 'vertical'
+            : cycle === 2 && levelHabitats.includes('water')
+              ? 'water'
+              : 'fall';
+    } else if (level >= 4 && (index + level * 2) % 11 === 0) {
+      platform.moving = true;
+      platform.motion = 'fall';
+    }
+  });
   for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
   const maxHp = level === 0 ? 6 : 5 + Math.floor(level / 7);
   return {
@@ -587,18 +629,49 @@ export function updateGame(
   }
   g.particles = g.particles.filter((q) => q.life > 0);
   for (const plat of g.platforms) {
-    const oldX = plat.x;
-    plat.dx = 0;
-    if (plat.moving) {
-      plat.x = plat.baseX + Math.sin(g.time * 1.25 + plat.baseX) * 26;
-      plat.dx = plat.x - oldX;
-      if (
+    const oldX = plat.x,
+      oldY = plat.y,
+      wasRiding =
         p.grounded &&
-        Math.abs(p.y + p.h - plat.y) < 3 &&
+        Math.abs(p.y + p.h - oldY) < 4 &&
         p.x + p.w > oldX &&
-        p.x < oldX + plat.w
-      )
-        p.x += plat.dx;
+        p.x < oldX + plat.w;
+    plat.dx = 0;
+    plat.dy = 0;
+    if (plat.motion === 'horizontal') {
+      plat.x = plat.baseX + Math.sin(g.time * 1.25 + plat.motionPhase) * 34;
+    } else if (plat.motion === 'vertical') {
+      plat.y = plat.baseY + Math.sin(g.time * 1.12 + plat.motionPhase) * 54;
+    } else if (plat.motion === 'water') {
+      plat.x = plat.baseX + Math.sin(g.time * 0.72 + plat.motionPhase) * 24;
+      plat.y = plat.baseY + Math.sin(g.time * 1.85 + plat.motionPhase) * 9;
+    } else if (plat.motion === 'fall') {
+      if (wasRiding && plat.fallDelay < 0 && !plat.falling && !plat.resetTimer)
+        plat.fallDelay = 0.7;
+      if (plat.fallDelay > 0) {
+        plat.fallDelay -= dt;
+        plat.y = plat.baseY + Math.sin(g.time * 28) * 2;
+        if (plat.fallDelay <= 0) plat.falling = true;
+      } else if (plat.falling) {
+        plat.y += 330 * dt;
+        if (plat.y > HEIGHT + 80) {
+          plat.falling = false;
+          plat.resetTimer = 1.7;
+        }
+      } else if (plat.resetTimer > 0) {
+        plat.resetTimer = Math.max(0, plat.resetTimer - dt);
+        if (!plat.resetTimer) {
+          plat.x = plat.baseX;
+          plat.y = plat.baseY;
+          plat.fallDelay = -1;
+        }
+      }
+    }
+    plat.dx = plat.x - oldX;
+    plat.dy = plat.y - oldY;
+    if (wasRiding && !plat.resetTimer) {
+      p.x += plat.dx;
+      p.y += plat.dy;
     }
   }
   if (input.jump) g.jumpBuffer = 0.14;
@@ -1178,22 +1251,59 @@ export function drawGame(
   for (const p of g.platforms) {
     const x = p.x - cam;
     if (x + p.w < 0 || x > WIDTH) continue;
+    const platformTop =
+      p.motion === 'water'
+        ? '#74dbe2'
+        : p.motion === 'fall' && p.fallDelay >= 0
+          ? '#e98b67'
+          : p.moving
+            ? '#dbbb76'
+            : g.sky
+              ? '#f4f4df'
+              : palette.grass;
     rect(x + 6, p.y + 7, p.w, p.h, '#35513044');
-    rect(x, p.y, p.w, p.h, g.sky && !p.ground ? '#86a4a1' : palette.soil);
     rect(
       x,
       p.y,
       p.w,
-      12,
-      p.moving ? '#dbbb76' : g.sky ? '#f4f4df' : palette.grass,
+      p.h,
+      p.motion === 'water'
+        ? '#2e9aaa'
+        : g.sky && !p.ground
+          ? '#86a4a1'
+          : palette.soil,
     );
+    rect(x, p.y, p.w, 12, platformTop);
     rect(x, p.y + 12, p.w, 5, '#304b3340');
     for (let a = 0; a < p.w; a += 28) {
       rect(x + a, p.y + 5, 16, 5, '#f4f8d544');
       for (let b = 23; b < p.h; b += 25)
         rect(x + a + 4, p.y + b, 12, 7, '#3a343226');
     }
-    if (p.moving) text('↔', x + p.w / 2, p.y + 25, 18, '#fcf0c4');
+    if (p.motion === 'horizontal')
+      text('↔', x + p.w / 2, p.y + 25, 18, '#fcf0c4');
+    if (p.motion === 'vertical')
+      text('↕', x + p.w / 2, p.y + 25, 18, '#fcf0c4');
+    if (p.motion === 'water') {
+      text('≈', x + p.w / 2, p.y + 25, 21, '#e9ffff');
+      ctx.strokeStyle = '#d9ffffb8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x + p.w / 2, p.y + p.h + 7, p.w * 0.4, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (p.motion === 'fall') {
+      ctx.strokeStyle = p.fallDelay >= 0 ? '#8b302b' : '#695145';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + p.w * 0.3, p.y + 3);
+      ctx.lineTo(x + p.w * 0.43, p.y + 10);
+      ctx.lineTo(x + p.w * 0.52, p.y + 4);
+      ctx.lineTo(x + p.w * 0.64, p.y + 12);
+      ctx.stroke();
+      if (p.fallDelay >= 0 && !p.falling)
+        text('!', x + p.w / 2, p.y - 8, 17, '#9c392e');
+    }
   }
   // A visible flag shows the latest safe respawn point.
   if (g.checkpoint > 200) {
