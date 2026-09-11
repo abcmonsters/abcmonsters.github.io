@@ -13,6 +13,41 @@ const PATHS = {
 const images = new Map<keyof typeof PATHS, HTMLImageElement>();
 let loading: Promise<void> | undefined;
 
+function platformKind(platform: Platform, worldKind: string) {
+  return platform.motion === 'water'
+    ? 'lotus'
+    : platform.motion === 'fall'
+      ? 'bamboo'
+      : worldKind === 'mountain'
+        ? 'mountain'
+        : ['city', 'castle'].includes(worldKind)
+          ? 'ceramic'
+          : worldKind === 'night'
+            ? 'lantern'
+            : ['garden', 'forest', 'savanna'].includes(worldKind)
+              ? 'earth'
+              : worldKind === 'water'
+                ? platform.ground
+                  ? 'ceramic'
+                  : 'lotus'
+                : 'cloud';
+}
+
+export function platformContactDepth(platform: Platform, worldKind: string) {
+  const kind = platformKind(platform, worldKind);
+  if (platform.ground)
+    return kind === 'earth' ? 20 : kind === 'mountain' ? 16 : 14;
+  return {
+    cloud: 7,
+    bamboo: 4,
+    lotus: 2,
+    mountain: 2,
+    ceramic: 3,
+    earth: 6,
+    lantern: 4,
+  }[kind];
+}
+
 export function loadPlatformArt() {
   loading ??= Promise.all(
     (Object.entries(PATHS) as [keyof typeof PATHS, string][]).map(
@@ -38,24 +73,7 @@ export function drawPlatformArt(
   screenX: number,
   worldKind: string,
 ) {
-  const kind =
-    platform.motion === 'water'
-      ? 'lotus'
-      : platform.motion === 'fall'
-        ? 'bamboo'
-        : worldKind === 'mountain'
-          ? 'mountain'
-          : ['city', 'castle'].includes(worldKind)
-            ? 'ceramic'
-            : worldKind === 'night'
-              ? 'lantern'
-              : ['garden', 'forest', 'savanna'].includes(worldKind)
-                ? 'earth'
-                : worldKind === 'water'
-                  ? platform.ground
-                    ? 'ceramic'
-                    : 'lotus'
-                  : 'cloud';
+  const kind = platformKind(platform, worldKind);
   const image = images.get(kind);
   if (!image?.complete || !image.naturalWidth) return false;
   const height = platform.ground

@@ -12,7 +12,7 @@ import { drawEarthRock } from './earth-art';
 import { drawCharacterArt, type CharacterId } from './character-art';
 import { drawElementProjectile } from './element-art';
 import { drawWendy } from './wendy-art';
-import { drawPlatformArt } from './platform-art';
+import { drawPlatformArt, platformContactDepth } from './platform-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -317,12 +317,24 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     // Round-robin keeps consecutive vocabulary enemies on separate islands.
     // When a route repeats, divide the available width into stable slots so
     // two enemies never spawn on the same point.
-    const hostCount = Math.max(1, eligiblePlatforms.length),
-      host = eligiblePlatforms[i % hostCount] ?? routePlatforms[0],
-      visit = Math.floor(i / hostCount),
-      visits = Math.ceil(count / hostCount),
-      usableWidth = Math.max(16, host.w - 76),
-      origin = host.x + 28 + (usableWidth * (visit + 1)) / (visits + 1);
+    const slots = eligiblePlatforms.flatMap((platform) => {
+        const slotCount = platform.ground
+          ? Math.max(1, Math.floor((platform.w - 52) / 180))
+          : 1;
+        return Array.from({ length: slotCount }, (_, slot) => ({
+          platform,
+          x:
+            platform.x +
+            26 +
+            ((platform.w - 52) * (slot + 1)) / (slotCount + 1),
+        }));
+      }),
+      sameHabitatBefore = Array.from({ length: i }, (_, previous) =>
+        enemyHabitat(VOCABULARY[level][previous % 3][0]),
+      ).filter((previousHabitat) => previousHabitat === habitat).length,
+      slot = slots[sameHabitatBefore % slots.length],
+      host = slot?.platform ?? routePlatforms[0],
+      origin = slot?.x ?? host.x + host.w / 2;
     const baseY =
       behavior === 'fly' || behavior === 'hover'
         ? 300 + (i % 3) * 48
@@ -403,8 +415,18 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     );
     const sample = enemies.map((e) => ({ ...e }));
     const aLandPlatforms = platforms.filter(
-      (platform) => platform.ground && platform.x > 300,
-    );
+        (platform) => platform.ground && platform.x > 300,
+      ),
+      aLandSlots = aLandPlatforms.flatMap((platform) => {
+        const slotCount = Math.max(1, Math.floor((platform.w - 52) / 180));
+        return Array.from({ length: slotCount }, (_, slot) => ({
+          platform,
+          x:
+            platform.x +
+            26 +
+            ((platform.w - 52) * (slot + 1)) / (slotCount + 1),
+        }));
+      });
     enemies.splice(
       0,
       enemies.length,
@@ -416,11 +438,18 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
             (platform) =>
               !platform.ground && Math.abs(platform.x - (430 + step * 200)) < 4,
           ),
+          landOrder = Array.from({ length: i }, (_, previous) =>
+            enemyHabitat(VOCABULARY[0][previous % 3][0]),
+          ).filter((previousHabitat) => previousHabitat === 'land').length,
+          landSlot = aLandSlots[landOrder % aLandSlots.length],
           host =
             habitat === 'land'
-              ? aLandPlatforms[i % aLandPlatforms.length]
+              ? landSlot.platform
               : (skyHost ?? aLandPlatforms[i % aLandPlatforms.length]),
-          x = host.x + Math.min(host.w - 54, 35 + (i % 2) * 42),
+          x =
+            habitat === 'land'
+              ? landSlot.x
+              : host.x + Math.min(host.w - 54, 35 + (i % 2) * 42),
           baseY = host.y - 44;
         return {
           ...sample[i % 3],
@@ -1506,7 +1535,9 @@ export function drawGame(
     // artwork into the illustrated surface while keeping collision geometry
     // unchanged, so paws/feet visually meet the grass or platform edge.
     const hostPlatform = g.platforms[e.platformIndex],
-      contactDepth = hostPlatform?.ground ? 18 : 7,
+      contactDepth = hostPlatform
+        ? platformContactDepth(hostPlatform, palette.kind)
+        : 0,
       enemyFootOffset = airborne(e.behavior)
         ? 0
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
@@ -1752,7 +1783,10 @@ export function drawGame(
               p.x < platform.x + platform.w,
           )
         : undefined,
-      heroFootOffset = p.grounded ? (standingPlatform?.ground ? 20 : 7) : 0;
+      heroFootOffset =
+        p.grounded && standingPlatform
+          ? platformContactDepth(standingPlatform, palette.kind)
+          : 0;
     ctx.translate(px + 21, p.y + p.h - bob + heroFootOffset);
     ctx.rotate(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
