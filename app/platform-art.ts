@@ -33,21 +33,6 @@ function platformKind(platform: Platform, worldKind: string) {
                 : 'cloud';
 }
 
-export function platformContactDepth(platform: Platform, worldKind: string) {
-  const kind = platformKind(platform, worldKind);
-  if (platform.ground)
-    return kind === 'earth' ? 20 : kind === 'mountain' ? 16 : 14;
-  return {
-    cloud: 7,
-    bamboo: 4,
-    lotus: 2,
-    mountain: 2,
-    ceramic: 3,
-    earth: 6,
-    lantern: 4,
-  }[kind];
-}
-
 export function loadPlatformArt() {
   loading ??= Promise.all(
     (Object.entries(PATHS) as [keyof typeof PATHS, string][]).map(
@@ -85,6 +70,19 @@ export function drawPlatformArt(
         : kind === 'lantern'
           ? 54
           : 42;
+  // Align the first visible pixel row of each source image with the physical
+  // collision surface. This makes every individual platform use the same
+  // truthful y coordinate regardless of its image padding or drawn height.
+  const sourceTop = {
+      cloud: 30 / 170,
+      bamboo: 18 / 170,
+      lotus: 0,
+      mountain: 25 / 190,
+      ceramic: 23 / 190,
+      earth: 0,
+      lantern: 7 / 190,
+    }[kind],
+    drawY = platform.y - sourceTop * height;
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   if (platform.motion === 'fall' && platform.fallDelay >= 0)
@@ -92,7 +90,7 @@ export function drawPlatformArt(
   ctx.drawImage(
     image,
     screenX - (platform.ground ? 0 : 6),
-    platform.y - (platform.ground ? 28 : 8),
+    drawY,
     platform.w + (platform.ground ? 0 : 12),
     height,
   );

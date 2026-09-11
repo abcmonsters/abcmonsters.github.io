@@ -6,13 +6,13 @@ import {
   type EnemyHabitat,
   type EnemyMotion,
 } from './enemy-traits';
-import { drawNounEnemy } from './noun-art';
+import { drawNounEnemy, nounFootInset } from './noun-art';
 import { drawCloudArt, drawSceneArt } from './scene-art';
 import { drawEarthRock } from './earth-art';
 import { drawCharacterArt, type CharacterId } from './character-art';
 import { drawElementProjectile } from './element-art';
 import { drawWendy } from './wendy-art';
-import { drawPlatformArt, platformContactDepth } from './platform-art';
+import { drawPlatformArt } from './platform-art';
 import { drawMonSprite, monExpression } from './mon-animation';
 import { drawVietnamScene, drawVietnamFood } from './vietnam-scene';
 import { VOCABULARY, WORLDS, VIET_FOODS, type Noun } from './lesson-data';
@@ -892,8 +892,16 @@ export function updateGame(
       if (e.behavior === 'drop' && e.dropState === 'ready') e.y = e.baseY - 150;
     }
     if (!e.activated) {
-      const enteredZone = p.x + p.w >= e.zoneStart && p.x <= e.zoneEnd;
-      if (enteredZone) {
+      const enteredZone = p.x + p.w >= e.zoneStart && p.x <= e.zoneEnd,
+        nearbyAttackers = g.enemies.filter(
+          (other) =>
+            other !== e &&
+            other.activated &&
+            !other.dead &&
+            Math.abs(other.x - p.x) < 680,
+        ).length,
+        attackerLimit = g.level < 8 ? 1 : 2;
+      if (enteredZone && nearbyAttackers < attackerLimit) {
         e.activated = true;
         e.alert = true;
         e.fireTimer = Math.max(1.15, e.fireTimer);
@@ -904,7 +912,8 @@ export function updateGame(
       } else {
         e.vx = 0;
         e.warning = 0;
-        if (!airborne(e.behavior)) e.y += (e.baseY - e.y) * Math.min(1, dt * 8);
+        if (!airborne(e.behavior) && e.behavior !== 'drop')
+          e.y += (e.baseY - e.y) * Math.min(1, dt * 8);
         continue;
       }
     }
@@ -1534,10 +1543,7 @@ export function drawGame(
     // Raster enemies contain a small transparent foot margin. Sink grounded
     // artwork into the illustrated surface while keeping collision geometry
     // unchanged, so paws/feet visually meet the grass or platform edge.
-    const hostPlatform = g.platforms[e.platformIndex],
-      contactDepth = hostPlatform
-        ? platformContactDepth(hostPlatform, palette.kind)
-        : 0,
+    const contactDepth = nounFootInset(e.noun[0], 46),
       enemyFootOffset = airborne(e.behavior)
         ? 0
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
@@ -1775,18 +1781,13 @@ export function drawGame(
     ctx.save();
     // The source character sprites have transparent pixels below their feet.
     // Apply the correction only while grounded so jump height remains honest.
-    const standingPlatform = p.grounded
-        ? g.platforms.find(
-            (platform) =>
-              Math.abs(p.y + p.h - platform.y) < 3 &&
-              p.x + p.w > platform.x &&
-              p.x < platform.x + platform.w,
-          )
-        : undefined,
-      heroFootOffset =
-        p.grounded && standingPlatform
-          ? platformContactDepth(standingPlatform, palette.kind)
-          : 0;
+    const heroFootOffset = p.grounded
+      ? g.hero === 'mon'
+        ? 8.25
+        : g.hero === 'sol'
+          ? 0.7
+          : 0
+      : 0;
     ctx.translate(px + 21, p.y + p.h - bob + heroFootOffset);
     ctx.rotate(
       p.grounded ? Math.sin(p.stride) * 0.045 * run : (p.vx / 240) * 0.09,
