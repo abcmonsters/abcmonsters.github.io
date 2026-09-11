@@ -1173,7 +1173,7 @@ export function updateGame(
     rock.life -= dt;
     for (const e of g.enemies) {
       if (!e.dead && overlaps(rock, e)) {
-        e.rockHp--;
+        e.rockHp = Math.max(0, e.rockHp - 2);
         rock.life = 0;
         g.score += e.rockHp <= 0 ? 70 : 15;
         g.shake = 0.1;
@@ -1190,7 +1190,7 @@ export function updateGame(
           learn(g, e.noun, 'stomp');
           wendySay(g, `${e.noun[0]} hết đường chạy nhé!`);
         } else {
-          wendySay(g, `Trúng rồi! Còn ${e.rockHp} đòn nữa!`, 1.7);
+          wendySay(g, `Trúng rồi! ${e.noun[0]} còn ${e.rockHp} máu!`, 1.7);
         }
         g.events.push({ type: 'earthHit', noun: e.noun });
         break;
