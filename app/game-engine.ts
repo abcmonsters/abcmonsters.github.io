@@ -1459,28 +1459,30 @@ export function drawGame(
     let line = '';
     for (const word of words) {
       const next = line ? `${line} ${word}` : word;
-      if (next.length > 43 && line) {
+      if (next.length > 30 && line) {
         lines.push(line);
         line = word;
       } else line = next;
     }
     if (line) lines.push(line);
-    const visibleLines = lines.slice(0, 2),
-      subtitleHeight = visibleLines.length > 1 ? 50 : 38,
-      subtitleY = HEIGHT - subtitleHeight - 112;
+    const visibleLines = lines.slice(0, 3),
+      subtitleHeight = 26 + visibleLines.length * 16,
+      subtitleX = 10,
+      subtitleY = 62,
+      subtitleWidth = 282;
     ctx.save();
     ctx.fillStyle = '#17251ee8';
     ctx.strokeStyle = '#f4cf5f';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(10, subtitleY, WIDTH - 20, subtitleHeight, 10);
+    ctx.roundRect(subtitleX, subtitleY, subtitleWidth, subtitleHeight, 10);
     ctx.fill();
     ctx.stroke();
     visibleLines.forEach((messageLine, index) =>
       text(
         messageLine,
-        WIDTH / 2,
-        subtitleY + 22 + index * 16,
+        subtitleX + subtitleWidth / 2,
+        subtitleY + 21 + index * 16,
         12,
         '#fff4bf',
         'Arial',
@@ -1495,8 +1497,6 @@ export function drawGame(
   ctx.globalAlpha = 1;
   if (g.combo > 1 && g.comboTime > 0)
     text(`COMBO ×${Math.min(g.combo, 5)}`, px + 21, p.y - 18, 14, '#fff3b1');
-  if (g.sky && g.mode === 'playing')
-    text('ĐƯỜNG MÂY · RƠI LÀ THUA', WIDTH / 2, 510, 13, '#4c6f69', 'Arial');
   if (cam < 200) {
     text('→', 180 - cam, 501, 26, '#668d52');
     text(
