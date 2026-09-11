@@ -113,6 +113,7 @@ export type Game = {
     attackTimer: number;
     dash: number;
     direction: number;
+    announcedStage: number;
   };
   shots: (Rect & { vx: number; vy: number; life: number; noun: Noun })[];
   earthShots: (Rect & {
@@ -140,7 +141,7 @@ export type Game = {
 export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
   level = Math.max(0, Math.min(25, Math.floor(level)));
   const difficulty = level / 25,
-    worldWidth = level === 0 ? 5600 : WORLD_WIDTH + Math.floor(level / 4) * 180,
+    worldWidth = level === 0 ? 5600 : WORLD_WIDTH + Math.floor(level / 3) * 190,
     gap = 300 + Math.floor(difficulty * 20),
     first = 635 + (level % 4) * 27,
     second = 1370 + (level % 3) * 31;
@@ -221,7 +222,18 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     for (let i = 0; i < 6; i++)
       add(start + i * 150, 442 + (i % 2) * 35, 92, 20, false, i === 2);
   }
-  const count = 8 + Math.floor(level / 5);
+  if (level >= 3) {
+    const movingEvery = Math.max(4, 7 - Math.floor(level / 6));
+    platforms
+      .filter(
+        (platform) =>
+          !platform.ground && platform.x > 650 && platform.x < worldWidth - 800,
+      )
+      .forEach((platform, index) => {
+        if ((index + level) % movingEvery === 0) platform.moving = true;
+      });
+  }
+  const count = 8 + Math.floor(level / 4);
   const habitatPlatforms = platforms.filter(
     (platform) =>
       platform.x > 330 && platform.x < worldWidth - 600 && platform.w > 70,
@@ -327,7 +339,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     );
   }
   for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
-  const maxHp = level === 0 ? 6 : 3 + Math.floor(level / 10);
+  const maxHp = level === 0 ? 6 : 5 + Math.floor(level / 7);
   return {
     level,
     hero,
@@ -374,6 +386,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       attackTimer: 2.8,
       dash: 0,
       direction: -1,
+      announcedStage: 1,
     },
     shots: [],
     earthShots: [],
@@ -627,8 +640,8 @@ export function updateGame(
       p.y = plat.y - p.h;
       p.vy = 0;
       p.grounded = true;
-      const reachedNewSkyCheckpoint =
-        g.level === 0 && p.x > g.checkpoint + 850 && p.x < g.worldWidth - 600;
+      const reachedNewRouteCheckpoint =
+        p.x > g.checkpoint + 850 && p.x < g.worldWidth - 600;
       if (
         plat.ground &&
         p.x > plat.x + 40 &&
@@ -637,7 +650,7 @@ export function updateGame(
       ) {
         g.checkpoint = p.x;
         g.checkpointY = p.y;
-      } else if (reachedNewSkyCheckpoint) {
+      } else if (reachedNewRouteCheckpoint) {
         g.checkpoint = p.x;
         g.checkpointY = p.y;
         wendySay(g, 'Đã lưu điểm này! Rơi cũng không phải đi lại từ đầu.', 2.7);
@@ -774,7 +787,10 @@ export function updateGame(
     ) {
       e.fireTimer -= dt;
       e.warning = e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
-      if (e.fireTimer <= 0 && g.shots.length < 10) {
+      if (
+        e.fireTimer <= 0 &&
+        g.shots.length < 10 + Math.floor(g.difficulty * 5)
+      ) {
         const width = Math.max(40, e.noun[0].length * 7 + 12);
         const dx = p.x + p.w / 2 + p.vx * 0.22 - (e.x + e.w / 2);
         const dy = p.y + p.h / 2 - (e.y + e.h / 2);
@@ -825,6 +841,16 @@ export function updateGame(
         : b.hp <= Math.ceil((b.maxHp * 2) / 3)
           ? 2
           : 1;
+    if (bossStage > b.announcedStage) {
+      b.announcedStage = bossStage;
+      wendySay(
+        g,
+        bossStage === 3
+          ? 'Giai đoạn cuối! Trùm bắn nhanh hơn—đừng đứng yên!'
+          : 'Trùm đổi chiêu rồi! Cẩn thận đạn bắn thành chùm!',
+        3,
+      );
+    }
     const enraged = bossStage >= 2;
     if (b.dash > 0) {
       b.dash = Math.max(0, b.dash - dt);
