@@ -90,7 +90,8 @@ export default function Home() {
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null),
     storyAudio = useRef<HTMLAudioElement>(null),
-    storySeeking = useRef(false);
+    storySeeking = useRef(false),
+    storySeekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
@@ -144,6 +145,8 @@ export default function Home() {
   }, []);
   const closeStory = useCallback(() => {
     storyAudio.current?.pause();
+    if (storySeekTimer.current) clearTimeout(storySeekTimer.current);
+    storySeeking.current = false;
     setStoryOpen(false);
     setStoryStarted(false);
   }, []);
@@ -152,6 +155,7 @@ export default function Home() {
     const sound = storyAudio.current;
     if (!sound) return;
     sound.currentTime = 0;
+    if (storySeekTimer.current) clearTimeout(storySeekTimer.current);
     storySeeking.current = false;
     sound.muted = mutedRef.current;
     setStoryScene(0);
@@ -169,13 +173,16 @@ export default function Home() {
     if (sound) {
       storySeeking.current = true;
       sound.pause();
-      const resumeAtScene = () => {
-        storySeeking.current = false;
-        sound.muted = mutedRef.current;
-        void sound.play();
-      };
-      sound.addEventListener('seeked', resumeAtScene, { once: true });
+      if (storySeekTimer.current) clearTimeout(storySeekTimer.current);
       sound.currentTime = STORY_SCENES[next].start;
+      sound.muted = mutedRef.current;
+      const playback = sound.play();
+      storySeekTimer.current = setTimeout(() => {
+        storySeeking.current = false;
+      }, 700);
+      void playback.catch(() => {
+        storySeeking.current = false;
+      });
     }
   }, [closeStory, storyScene]);
   const tone = useCallback((hz: number) => {
