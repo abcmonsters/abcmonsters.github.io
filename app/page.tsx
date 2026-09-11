@@ -492,7 +492,7 @@ export default function Home() {
     }
     setQuizRound(3);
     setQuizInput('');
-    setQuizHint('Còn 2 câu gõ từ chính xác để hoàn thành màn!');
+    setQuizHint('Còn 3 câu gõ từ chính xác để hoàn thành màn!');
     say(VOCABULARY[level][0][0]);
     tone(700);
   }
@@ -515,11 +515,16 @@ export default function Home() {
       tone(180);
       return;
     }
-    if (quizRound === 3) {
-      setQuizRound(4);
+    if (quizRound < 5) {
+      const nextRound = quizRound + 1;
+      setQuizRound(nextRound);
       setQuizInput('');
-      setQuizHint('Đúng rồi! Gõ chính xác thêm một từ nữa nhé.');
-      say(VOCABULARY[level][1][0]);
+      setQuizHint(
+        nextRound === 5
+          ? 'Đúng rồi! Còn từ cuối cùng nhé.'
+          : 'Đúng rồi! Gõ chính xác thêm một từ nữa nhé.',
+      );
+      say(VOCABULARY[level][nextRound - 3][0]);
       tone(700);
       return;
     }
@@ -869,7 +874,7 @@ export default function Home() {
             {mode === 'quiz' && (
               <div className="state-screen quiz-screen">
                 <span className="game-kicker">
-                  TRÙM {letter} · CÂU {quizRound + 1}/5
+                  TRÙM {letter} · CÂU {quizRound + 1}/6
                 </span>
                 <span className="quiz-letter">
                   {letter}
@@ -916,7 +921,7 @@ export default function Home() {
                       autoComplete="off"
                       autoCapitalize="none"
                       spellCheck={false}
-                      enterKeyHint={quizRound === 3 ? 'next' : 'done'}
+                      enterKeyHint={quizRound < 5 ? 'next' : 'done'}
                       placeholder={`${letter.toLowerCase()}...`}
                       aria-describedby="quiz-feedback"
                     />
