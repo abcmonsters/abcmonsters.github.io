@@ -20,6 +20,20 @@ export { WORDS, WORLDS, VOCABULARY } from './lesson-data';
 export const WIDTH = 432,
   HEIGHT = 640,
   WORLD_WIDTH = 4700;
+function difficultyProfile(level: number) {
+  const tier = Math.floor(level / 5);
+  return {
+    enemyCount: 6 + tier,
+    activeLimit: level < 10 ? 1 : 2,
+    zoneBehind: 230 + tier * 14,
+    zoneAhead: 285 + tier * 18,
+    pursuitSpeed: 105 + level * 3.2,
+    shotSpeed: 108 + level * 3.1,
+    shotCooldown: 3.7 - level * 0.044,
+    shotCap: 3 + tier,
+    bossHp: 4 + tier,
+  };
+}
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Platform = Rect & {
   ground?: boolean;
@@ -152,6 +166,7 @@ export type Game = {
 export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
   level = Math.max(0, Math.min(25, Math.floor(level)));
   const difficulty = level / 25,
+    profile = difficultyProfile(level),
     worldWidth = level === 0 ? 5600 : WORLD_WIDTH + Math.floor(level / 3) * 190,
     gap = 300 + Math.floor(difficulty * 20),
     first = 635 + (level % 4) * 27,
@@ -287,7 +302,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
         if ((index + level) % movingEvery === 0) platform.moving = true;
       });
   }
-  const count = 8 + Math.floor(level / 4);
+  const count = profile.enemyCount;
   const routePlatforms = platforms.filter(
     (platform) =>
       platform.x > 330 && platform.x < worldWidth - 600 && platform.w > 70,
@@ -299,6 +314,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     waterPlatforms = routePlatforms.filter(
       (platform) => !platform.ground && platform.y >= 440,
     );
+  const usedSpawnXs: number[] = [];
   const enemies: Enemy[] = Array.from({ length: count }, (_, i) => {
     const noun = VOCABULARY[level][i % 3];
     const behavior = enemyMotion(noun[0]);
@@ -314,9 +330,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       eligiblePlatforms = preferredPlatforms.length
         ? preferredPlatforms
         : routePlatforms;
-    // Round-robin keeps consecutive vocabulary enemies on separate islands.
-    // When a route repeats, divide the available width into stable slots so
-    // two enemies never spawn on the same point.
+    // Divide every valid habitat route into encounter slots, then choose the
+    // slot nearest this encounter's evenly spaced map sector.
     const slots = eligiblePlatforms.flatMap((platform) => {
         const slotCount = platform.ground
           ? Math.max(1, Math.floor((platform.w - 52) / 180))
@@ -329,12 +344,23 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
             ((platform.w - 52) * (slot + 1)) / (slotCount + 1),
         }));
       }),
-      sameHabitatBefore = Array.from({ length: i }, (_, previous) =>
-        enemyHabitat(VOCABULARY[level][previous % 3][0]),
-      ).filter((previousHabitat) => previousHabitat === habitat).length,
-      slot = slots[sameHabitatBefore % slots.length],
+      encounterCenter = 560 + ((worldWidth - 1320) * (i + 1)) / (count + 1),
+      orderedSlots = [...slots].sort(
+        (a, b) =>
+          Math.abs(a.x - encounterCenter) - Math.abs(b.x - encounterCenter),
+      ),
+      slot =
+        orderedSlots.find((candidate) =>
+          usedSpawnXs.every((usedX) => Math.abs(candidate.x - usedX) >= 260),
+        ) ??
+        orderedSlots.reduce((best, candidate) => {
+          const clearance = (x: number) =>
+            Math.min(...usedSpawnXs.map((usedX) => Math.abs(x - usedX)));
+          return clearance(candidate.x) > clearance(best.x) ? candidate : best;
+        }, orderedSlots[0]),
       host = slot?.platform ?? routePlatforms[0],
       origin = slot?.x ?? host.x + host.w / 2;
+    usedSpawnXs.push(origin);
     const baseY =
       behavior === 'fly' || behavior === 'hover'
         ? 300 + (i % 3) * 48
@@ -345,9 +371,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       vx: 0,
       alert: false,
       activated: false,
-      zoneStart: Math.max(0, origin - (habitat === 'sky' ? 430 : 300)),
-      zoneEnd: Math.min(worldWidth, origin + (habitat === 'sky' ? 430 : 340)),
-      fireTimer: 1.8 + (i % 3) * 0.65,
+      zoneStart: Math.max(0, origin - profile.zoneBehind),
+      zoneEnd: Math.min(worldWidth, origin + profile.zoneAhead),
+      fireTimer: profile.shotCooldown + 0.7 + (i % 3) * 0.35,
       warning: 0,
       x: origin,
       y: baseY,
@@ -430,7 +456,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     enemies.splice(
       0,
       enemies.length,
-      ...[1, 3, 5, 7, 9, 11, 13, 15, 18, 21].map((step, i) => {
+      ...[1, 4, 7, 10, 13, 17, 21].map((step, i) => {
         const noun = VOCABULARY[0][i % 3],
           behavior = enemyMotion(noun[0]),
           habitat = enemyHabitat(noun[0]),
@@ -460,13 +486,13 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
           platformIndex: platforms.indexOf(host),
           range: Math.min(70, Math.max(22, host.w / 2 - 35)),
           phase: i * 1.3,
-          fireTimer: 2 + (i % 3),
+          fireTimer: profile.shotCooldown + 0.7 + (i % 3) * 0.35,
           noun,
           behavior,
           habitat,
           activated: false,
-          zoneStart: Math.max(0, x - (habitat === 'sky' ? 430 : 285)),
-          zoneEnd: Math.min(worldWidth, x + (habitat === 'sky' ? 430 : 330)),
+          zoneStart: Math.max(0, x - profile.zoneBehind),
+          zoneEnd: Math.min(worldWidth, x + profile.zoneAhead),
         };
       }),
     );
@@ -501,7 +527,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     }
   });
   for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
-  const maxHp = level === 0 ? 6 : 5 + Math.floor(level / 7);
+  const maxHp = profile.bossHp;
   return {
     level,
     hero,
@@ -733,7 +759,8 @@ export function updateGame(
       2.8,
     );
   }
-  const p = g.player;
+  const p = g.player,
+    profile = difficultyProfile(g.level);
   g.shake = Math.max(0, g.shake - dt);
   g.earthCooldown = Math.max(0, g.earthCooldown - dt);
   if (input.earth) activateEarthSkill(g);
@@ -900,7 +927,7 @@ export function updateGame(
             !other.dead &&
             Math.abs(other.x - p.x) < 680,
         ).length,
-        attackerLimit = g.level < 8 ? 1 : 2;
+        attackerLimit = profile.activeLimit;
       if (enteredZone && nearbyAttackers < attackerLimit) {
         e.activated = true;
         e.alert = true;
@@ -930,8 +957,7 @@ export function updateGame(
       ? p.x + p.vx * (e.behavior === 'hop' ? 0.28 : 0.12)
       : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
     const direction = Math.sign(targetX - e.x);
-    const pace =
-      (e.alert ? 120 + g.difficulty * 70 : 34) * enemyPace(e.noun[0]);
+    const pace = profile.pursuitSpeed * enemyPace(e.noun[0]);
     if (e.behavior === 'drop') {
       e.vx = 0;
       e.dropClock -= dt;
@@ -1011,15 +1037,12 @@ export function updateGame(
     ) {
       e.fireTimer -= dt;
       e.warning = e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
-      if (
-        e.fireTimer <= 0 &&
-        g.shots.length < 10 + Math.floor(g.difficulty * 5)
-      ) {
+      if (e.fireTimer <= 0 && g.shots.length < profile.shotCap) {
         const width = Math.max(40, e.noun[0].length * 7 + 12);
         const dx = p.x + p.w / 2 + p.vx * 0.22 - (e.x + e.w / 2);
         const dy = p.y + p.h / 2 - (e.y + e.h / 2);
         const length = Math.max(1, Math.hypot(dx, dy));
-        const speed = 130 + g.difficulty * 60;
+        const speed = profile.shotSpeed;
         g.shots.push({
           x: e.x + e.w / 2 - width / 2,
           y: e.y + 12,
@@ -1030,7 +1053,7 @@ export function updateGame(
           life: 3.2,
           noun: e.noun,
         });
-        e.fireTimer = 2.9 - g.difficulty * 0.65 + (e.phase % 0.5);
+        e.fireTimer = profile.shotCooldown + (e.phase % 0.45);
       }
     } else e.fireTimer = Math.max(0.8, e.fireTimer);
     if (overlaps(p, e)) {
