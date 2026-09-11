@@ -510,6 +510,45 @@ a {
     object-position: 53% center;
   }
 }
+@media (orientation: landscape) and (min-aspect-ratio: 4/3) {
+  .story-image {
+    object-position: left center;
+  }
+  .story-shade {
+    background: linear-gradient(90deg, transparent 45%, #07140d4d 68%, #07140d);
+  }
+  .story-progress {
+    right: min(42vw, 420px);
+  }
+  .story-copy {
+    inset: 0 0 0 auto;
+    width: min(42vw, 420px);
+    height: 100%;
+    padding: 62px 26px 24px;
+    transform: none;
+    justify-content: center;
+    background: linear-gradient(90deg, #10201900, #102019d9 18%, #102019f5);
+  }
+  .story-copy p {
+    min-height: 0;
+  }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .story-copy {
+    padding-top: 48px;
+  }
+  .story-copy h2 {
+    margin: 5px 0;
+    font-size: 22px;
+  }
+  .story-copy p {
+    margin-bottom: 9px;
+    font-size: 12px;
+  }
+  .story-primary {
+    min-height: 36px;
+  }
+}
 .game-kicker {
   font-size: 10px;
   letter-spacing: 2.4px;
