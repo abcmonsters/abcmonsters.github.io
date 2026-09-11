@@ -1021,8 +1021,10 @@ export function updateGame(
               ? 100
               : 56
             : e.behavior === 'walk'
-              ? 18
-              : 7;
+              ? 4
+              : e.behavior === 'slither'
+                ? 1.5
+                : 0;
         const targetY = e.baseY - (groundMotion ? jump * amplitude : 0);
         e.y += Math.max(-200 * dt, Math.min(200 * dt, targetY - e.y));
       }
@@ -1566,7 +1568,7 @@ export function drawGame(
     // Raster enemies contain a small transparent foot margin. Sink grounded
     // artwork into the illustrated surface while keeping collision geometry
     // unchanged, so paws/feet visually meet the grass or platform edge.
-    const contactDepth = nounFootInset(e.noun[0], 46),
+    const contactDepth = nounFootInset(e.noun[0], 46) + 1.25,
       enemyFootOffset = airborne(e.behavior)
         ? 0
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
