@@ -122,6 +122,7 @@ export default function Home() {
     mutedRef = useRef(false),
     audio = useRef<AudioContext | null>(null),
     storyAudio = useRef<HTMLAudioElement>(null),
+    endingAudio = useRef<HTMLAudioElement>(null),
     storySceneRef = useRef(0);
   const [level, setLevel] = useState(0),
     [mode, setMode] = useState<Mode>('ready'),
@@ -178,16 +179,17 @@ export default function Home() {
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
-  const narrateEnding = useCallback((scene: number) => {
-    if (mutedRef.current || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(ENDING_SCENES[scene].text);
-    utterance.lang = 'vi-VN';
-    utterance.rate = 0.88;
-    window.speechSynthesis.speak(utterance);
+  const playEndingClip = useCallback((scene: number) => {
+    const sound = endingAudio.current;
+    if (!sound) return;
+    sound.pause();
+    sound.src = `/story/ending/audio/scene-${scene + 1}.mp3`;
+    sound.load();
+    sound.muted = mutedRef.current;
+    void sound.play();
   }, []);
   const closeEnding = useCallback(() => {
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    endingAudio.current?.pause();
     setEndingOpen(false);
     setEndingStarted(false);
     try {
@@ -198,8 +200,8 @@ export default function Home() {
     stopVoice();
     setEndingScene(0);
     setEndingStarted(true);
-    narrateEnding(0);
-  }, [narrateEnding]);
+    playEndingClip(0);
+  }, [playEndingClip]);
   const nextEndingScene = useCallback(() => {
     if (endingScene >= ENDING_SCENES.length - 1) {
       closeEnding();
@@ -207,13 +209,17 @@ export default function Home() {
     }
     const next = endingScene + 1;
     setEndingScene(next);
-    narrateEnding(next);
-  }, [closeEnding, endingScene, narrateEnding]);
+    playEndingClip(next);
+  }, [closeEnding, endingScene, playEndingClip]);
   const replayEnding = useCallback(() => {
     setEndingScene(0);
     setEndingStarted(false);
     setEndingOpen(true);
   }, []);
+  const handleEndingAudioEnded = useCallback(() => {
+    if (endingStarted && endingScene < ENDING_SCENES.length - 1)
+      nextEndingScene();
+  }, [endingScene, endingStarted, nextEndingScene]);
   const closeStory = useCallback(() => {
     storyAudio.current?.pause();
     setStoryOpen(false);
@@ -665,6 +671,7 @@ export default function Home() {
               mutedRef.current = !muted;
               setMuted(!muted);
               if (storyAudio.current) storyAudio.current.muted = !muted;
+              if (endingAudio.current) endingAudio.current.muted = !muted;
               if (!muted) stopVoice();
             }}
           >
@@ -730,6 +737,20 @@ export default function Home() {
               <track
                 kind="captions"
                 src="/story/story-vi.vtt"
+                srcLang="vi"
+                label="Tiếng Việt"
+                default
+              />
+            </audio>
+            <audio
+              ref={endingAudio}
+              preload="auto"
+              onEnded={handleEndingAudioEnded}
+            >
+              <track
+                key={endingScene}
+                kind="captions"
+                src={`/story/ending/audio/scene-${endingScene + 1}.vtt`}
                 srcLang="vi"
                 label="Tiếng Việt"
                 default
@@ -870,6 +891,7 @@ export default function Home() {
                     mutedRef.current = !muted;
                     setMuted(!muted);
                     if (storyAudio.current) storyAudio.current.muted = !muted;
+                    if (endingAudio.current) endingAudio.current.muted = !muted;
                     if (!muted) stopVoice();
                   }}
                 >
