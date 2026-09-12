@@ -335,6 +335,17 @@ export default function Home() {
   );
   useEffect(() => () => stopVoice(), []);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('ending') !== 'preview')
+      return;
+    const id = requestAnimationFrame(() => {
+      setStoryOpen(false);
+      setEndingScene(0);
+      setEndingStarted(false);
+      setEndingOpen(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+  useEffect(() => {
     if (!storyOpen || !storyStarted) return;
     if (usesDesktopStoryClips()) return;
     let frame = 0;
