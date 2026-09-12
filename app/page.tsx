@@ -12,6 +12,15 @@ import {
 } from './character-art';
 import { loadVietnamFoodArt } from './vietnam-scene';
 import CharacterChoicePortrait from './character-choice-portrait';
+import {
+  cloudProgressEnabled,
+  loadCloudProgress,
+  saveCloudProgress,
+  signInWithGoogle,
+  signOutProgressUser,
+  watchProgressUser,
+  type ProgressUser,
+} from './cloud-progress';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -37,6 +46,9 @@ import {
   Check,
   ChevronRight,
   X,
+  Cloud,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import {
   createGame,
@@ -146,7 +158,12 @@ export default function Home() {
     [storyScene, setStoryScene] = useState(0),
     [endingOpen, setEndingOpen] = useState(false),
     [endingStarted, setEndingStarted] = useState(false),
-    [endingScene, setEndingScene] = useState(0);
+    [endingScene, setEndingScene] = useState(0),
+    [progressUser, setProgressUser] = useState<ProgressUser | null>(null),
+    [cloudStatus, setCloudStatus] = useState<
+      'idle' | 'syncing' | 'saved' | 'error'
+    >('idle');
+  const completedRef = useRef<number[]>([]);
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -345,6 +362,44 @@ export default function Home() {
     });
     return () => cancelAnimationFrame(id);
   }, []);
+  useEffect(() => {
+    completedRef.current = completed;
+  }, [completed]);
+  useEffect(
+    () =>
+      watchProgressUser(async (user) => {
+        setProgressUser(user);
+        if (!user) {
+          setCloudStatus('idle');
+          return;
+        }
+        setCloudStatus('syncing');
+        try {
+          const cloud = await loadCloudProgress(user.uid),
+            merged = [...new Set([...completedRef.current, ...cloud])].sort(
+              (a, b) => a - b,
+            );
+          completedRef.current = merged;
+          setCompleted(merged);
+          localStorage.setItem('mon-alphabet-progress', JSON.stringify(merged));
+          await saveCloudProgress(user.uid, merged);
+          setCloudStatus('saved');
+        } catch {
+          setCloudStatus('error');
+        }
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!progressUser) return;
+    const timeout = setTimeout(() => {
+      setCloudStatus('syncing');
+      void saveCloudProgress(progressUser.uid, completed)
+        .then(() => setCloudStatus('saved'))
+        .catch(() => setCloudStatus('error'));
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [completed, progressUser]);
   useEffect(() => {
     if (!storyOpen || !storyStarted) return;
     if (usesDesktopStoryClips()) return;
@@ -597,6 +652,18 @@ export default function Home() {
       }
     }
   }
+  async function handleGoogleAccount() {
+    if (progressUser) {
+      await signOutProgressUser();
+      return;
+    }
+    setCloudStatus('syncing');
+    try {
+      await signInWithGoogle();
+    } catch {
+      setCloudStatus('error');
+    }
+  }
   function submitTypedAnswer(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const typingIndex = quizRound - 3,
@@ -664,6 +731,30 @@ export default function Home() {
         </Link>
         <span className="header-note">Một cuộc phiêu lưu. 26 chữ cái.</span>
         <div className="header-actions">
+          {cloudProgressEnabled && (
+            <button
+              className="account-button"
+              type="button"
+              onClick={() => void handleGoogleAccount()}
+              title={progressUser ? 'Đăng xuất' : 'Lưu tiến độ bằng Google'}
+            >
+              {progressUser?.photoURL ? (
+                <Image
+                  unoptimized
+                  src={progressUser.photoURL}
+                  alt=""
+                  width={26}
+                  height={26}
+                />
+              ) : progressUser ? (
+                <Cloud size={18} />
+              ) : (
+                <LogIn size={18} />
+              )}
+              <span>{progressUser?.displayName ?? 'Đăng nhập Google'}</span>
+              {progressUser && <LogOut size={14} />}
+            </button>
+          )}
           <button
             className="icon-button"
             aria-label="Chọn màn chơi"
@@ -916,6 +1007,36 @@ export default function Home() {
             {mode === 'ready' && (
               <div className="start-screen">
                 <div className="start-card">
+                  {cloudProgressEnabled && (
+                    <button
+                      className={`start-account ${progressUser ? 'signed-in' : ''}`}
+                      type="button"
+                      onClick={() => void handleGoogleAccount()}
+                    >
+                      {progressUser?.photoURL ? (
+                        <Image
+                          unoptimized
+                          src={progressUser.photoURL}
+                          alt=""
+                          width={28}
+                          height={28}
+                        />
+                      ) : (
+                        <LogIn size={17} />
+                      )}
+                      <span>
+                        {progressUser
+                          ? `${progressUser.displayName ?? progressUser.email} · ${
+                              cloudStatus === 'syncing'
+                                ? 'Đang lưu…'
+                                : cloudStatus === 'error'
+                                  ? 'Chưa đồng bộ'
+                                  : 'Đã lưu'
+                            }`
+                          : 'Đăng nhập Google để lưu tiến độ'}
+                      </span>
+                    </button>
+                  )}
                   <span className="game-kicker">CHỌN NGƯỜI BẠN ĐỒNG HÀNH</span>
                   <h2>
                     ALPHABET <em>ADVENTURE</em>

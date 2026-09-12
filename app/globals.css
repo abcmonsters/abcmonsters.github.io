@@ -108,6 +108,40 @@ a {
   display: grid;
   place-items: center;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.account-button,
+.start-account {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #eef3cf;
+  background: #ffffff0d;
+  border: 1px solid #ffffff26;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.account-button img,
+.start-account img {
+  border-radius: 50%;
+}
+.start-account {
+  margin: 0 auto 12px;
+  color: #274132;
+  background: #ffffff9c;
+  border-color: #809c70;
+  max-width: min(100%, 320px);
+}
+.start-account.signed-in {
+  background: #dff0b6;
+}
 .game-layout {
   max-width: 1220px;
   margin: auto;
