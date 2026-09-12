@@ -266,33 +266,99 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     for (let i = 0; i < 6; i++)
       add(start + i * 150, 442 + (i % 2) * 35, 92, 20, false, i === 2);
   }
-  // Remove same-lane overlaps created when a habitat route crosses a reward route.
-  // Platforms carrying a letter or food are always preserved.
-  const keptPlatforms: Platform[] = [];
-  for (const platform of [...platforms].sort(
-    (a, b) => a.x - b.x || a.y - b.y,
-  )) {
-    const essential =
-      pickups.some(
-        (pickup) =>
-          pickup.x >= platform.x && pickup.x <= platform.x + platform.w,
-      ) ||
-      foods.some(
-        (food) => food.x >= platform.x && food.x <= platform.x + platform.w,
-      );
-    const redundant = keptPlatforms.some((other) => {
-      if (platform.ground || other.ground) return false;
-      const overlap =
-        Math.min(platform.x + platform.w, other.x + other.w) -
-        Math.max(platform.x, other.x);
-      return (
-        Math.abs(platform.y - other.y) < 34 &&
-        overlap > Math.min(platform.w, other.w) * 0.55
-      );
-    });
-    if (!redundant || essential) keptPlatforms.push(platform);
-  }
-  platforms.splice(0, platforms.length, ...keptPlatforms);
+  // Habitat, reward and river routes are generated independently. Resolve
+  // their illustrated footprints here so two platform paintings never stack
+  // on top of each other. Reward carriers win; ordinary duplicate steps are
+  // removed, while colliding reward carriers are moved into a nearby free
+  // stair position together with their pickup/food.
+  const sanitizePlatforms = () => {
+    const payloadsFor = (platform: Platform) => ({
+        pickups: pickups.filter(
+          (pickup) =>
+            pickup.x >= platform.x &&
+            pickup.x <= platform.x + platform.w &&
+            Math.abs(pickup.y + 48 - platform.y) < 12,
+        ),
+        foods: foods.filter(
+          (food) =>
+            food.x + food.w / 2 >= platform.x &&
+            food.x + food.w / 2 <= platform.x + platform.w &&
+            Math.abs(food.y + food.h - platform.y) < 18,
+        ),
+      }),
+      platformPriority = (platform: Platform) => {
+        const payload = payloadsFor(platform);
+        return payload.pickups.length ? 3 : payload.foods.length ? 2 : 1;
+      },
+      overlapsPlatformArt = (a: Platform, b: Platform) => {
+        const horizontal =
+          Math.min(a.x + a.w + 6, b.x + b.w + 6) - Math.max(a.x - 6, b.x - 6);
+        return horizontal > 14 && Math.abs(a.y - b.y) < 56;
+      };
+    const groundPlatforms = platforms.filter((platform) => platform.ground),
+      floatingPlatforms = platforms
+        .filter((platform) => !platform.ground)
+        .sort(
+          (a, b) =>
+            platformPriority(b) - platformPriority(a) || a.x - b.x || a.y - b.y,
+        ),
+      keptPlatforms: Platform[] = [];
+    for (const platform of floatingPlatforms) {
+      if (
+        !keptPlatforms.some((other) => overlapsPlatformArt(platform, other))
+      ) {
+        keptPlatforms.push(platform);
+        continue;
+      }
+      if (platformPriority(platform) === 1) continue;
+      const payload = payloadsFor(platform),
+        originalX = platform.x,
+        originalY = platform.y,
+        alternatives = [
+          { x: 0, y: -68 },
+          { x: 92, y: 0 },
+          { x: -92, y: 0 },
+          { x: 76, y: -68 },
+          { x: -76, y: -68 },
+          { x: 0, y: 68 },
+        ],
+        freePosition = alternatives.find(({ x, y }) => {
+          platform.x = originalX + x;
+          platform.y = Math.max(270, Math.min(492, originalY + y));
+          return (
+            platform.x > 20 &&
+            platform.x + platform.w < worldWidth - 20 &&
+            !keptPlatforms.some((other) => overlapsPlatformArt(platform, other))
+          );
+        });
+      if (!freePosition) {
+        platform.x = originalX;
+        platform.y = originalY;
+        continue;
+      }
+      const dx = platform.x - originalX,
+        dy = platform.y - originalY;
+      platform.baseX = platform.x;
+      platform.baseY = platform.y;
+      payload.pickups.forEach((pickup) => {
+        pickup.x += dx;
+        pickup.y += dy;
+      });
+      payload.foods.forEach((food) => {
+        food.x += dx;
+        food.y += dy;
+      });
+      keptPlatforms.push(platform);
+    }
+    platforms.splice(
+      0,
+      platforms.length,
+      ...[...groundPlatforms, ...keptPlatforms].sort(
+        (a, b) => a.x - b.x || a.y - b.y,
+      ),
+    );
+  };
+  if (level !== 0) sanitizePlatforms();
   if (level >= 3) {
     const movingEvery = Math.max(4, 7 - Math.floor(level / 6));
     platforms
@@ -441,6 +507,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
         eaten: false,
       })),
     );
+    sanitizePlatforms();
     const sample = enemies.map((e) => ({ ...e }));
     const aLandPlatforms = platforms.filter(
         (platform) => platform.ground && platform.x > 300,
@@ -526,6 +593,48 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     ) {
       platform.moving = true;
       platform.motion = 'fall';
+    }
+  });
+  // A moving platform may have a clear resting position but sweep through a
+  // neighbouring step. Keep the richer layout and make only that conflicting
+  // platform static, so illustrated blocks never pass through each other.
+  const motionEnvelope = (platform: Platform) => {
+      const horizontal = platform.motion === 'horizontal' ? 40 : 0,
+        vertical =
+          platform.motion === 'vertical'
+            ? 54
+            : platform.motion === 'water'
+              ? 9
+              : 0;
+      return {
+        left: platform.baseX - horizontal - 6,
+        right: platform.baseX + platform.w + horizontal + 6,
+        top: platform.baseY - vertical - 28,
+        bottom: platform.baseY + vertical + 28,
+      };
+    },
+    envelopesOverlap = (a: Platform, b: Platform) => {
+      const ea = motionEnvelope(a),
+        eb = motionEnvelope(b);
+      return (
+        Math.min(ea.right, eb.right) - Math.max(ea.left, eb.left) > 14 &&
+        Math.min(ea.bottom, eb.bottom) - Math.max(ea.top, eb.top) > 8
+      );
+    };
+  interactivePlatforms.forEach((platform) => {
+    if (
+      platform.moving &&
+      platforms.some(
+        (other) =>
+          other !== platform &&
+          !other.ground &&
+          envelopesOverlap(platform, other),
+      )
+    ) {
+      platform.moving = false;
+      platform.motion = 'static';
+      platform.x = platform.baseX;
+      platform.y = platform.baseY;
     }
   });
   for (const e of enemies) if (e.behavior === 'drop') e.y = e.baseY - 150;
