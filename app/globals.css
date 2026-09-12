@@ -142,6 +142,34 @@ a {
 .start-account.signed-in {
   background: #dff0b6;
 }
+.start-account-options {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 auto 12px;
+}
+.start-account-options .start-account {
+  margin: 0;
+}
+.guest-button {
+  min-height: 40px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  color: #3a503f;
+  background: #ffffff70;
+  border: 1px solid #91a889;
+  font-size: 12px;
+  font-weight: 750;
+}
+.guest-button.selected {
+  background: #d5ef75;
+  border-color: #66823e;
+}
 .game-layout {
   max-width: 1220px;
   margin: auto;
