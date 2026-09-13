@@ -42,7 +42,7 @@ export type Platform = Rect & {
   moving?: boolean;
   dx: number;
   dy: number;
-  motion: 'static' | 'horizontal' | 'vertical' | 'water' | 'fall';
+  motion: 'static' | 'horizontal' | 'vertical' | 'water' | 'fall' | 'spring';
   motionPhase: number;
   fallDelay: number;
   falling: boolean;
@@ -579,7 +579,15 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
         levelHabitats.includes('water') && platform.baseY >= 440,
       isSkyRoute =
         (levelHabitats.includes('sky') || levelMotions.includes('hover')) &&
-        platform.baseY < 440;
+        platform.baseY < 440,
+      isSpringRoute =
+        !isWaterRoute &&
+        !isSkyRoute &&
+        (levelMotions.includes('hop') ||
+          ['forest', 'garden', 'jungle', 'savanna'].includes(
+            WORLDS[level].kind,
+          )) &&
+        (index + level) % 7 === 2;
     if (platform.moving) {
       const cycle = level === 0 ? index % 3 : (index + level) % 4;
       platform.motion = isWaterRoute
@@ -589,6 +597,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
           : cycle === 1
             ? 'vertical'
             : 'fall';
+    } else if (isSpringRoute) {
+      platform.motion = 'spring';
     } else if (
       level >= 4 &&
       !isWaterRoute &&
@@ -984,14 +994,20 @@ export function updateGame(
       oldBottom <= plat.y + 4 &&
       p.y + p.h >= plat.y
     ) {
+      const springLanding = plat.motion === 'spring';
       if (!wasGrounded && p.vy > 250) {
         p.landing = 0.16;
         burst(g, p.x + 21, plat.y, '#ebefc1', 6);
       }
       p.y = plat.y - p.h;
-      p.vy = 0;
-      p.grounded = true;
+      p.vy = springLanding ? -820 : 0;
+      p.grounded = !springLanding;
       g.doubleJumpReady = g.doubleJumpUnlocked;
+      if (springLanding) {
+        g.coyote = 0;
+        burst(g, p.x + 21, plat.y, '#8fdb69', 13);
+        wendySay(g, 'Bệ lá bật cao! Giữ hướng để chọn chỗ đáp.', 1.8);
+      }
       if (
         !g.checkpointReached &&
         p.x >= g.checkpointTarget &&
@@ -1604,6 +1620,23 @@ export function drawGame(
       ctx.beginPath();
       ctx.ellipse(x + p.w / 2, p.y + p.h + 7, p.w * 0.4, 4, 0, 0, Math.PI * 2);
       ctx.stroke();
+    }
+    if (p.motion === 'spring') {
+      const pulse = 2 + Math.sin(t * 5 + p.motionPhase) * 2;
+      ctx.strokeStyle = '#eaffac';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(
+        x + p.w / 2,
+        p.y + 7,
+        Math.max(16, p.w * 0.28) + pulse,
+        5 + pulse * 0.3,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+      text('↑', x + p.w / 2, p.y + 27, 19, '#f3ffd0');
     }
     if (p.motion === 'fall') {
       ctx.strokeStyle = p.fallDelay >= 0 ? '#8b302b' : '#695145';

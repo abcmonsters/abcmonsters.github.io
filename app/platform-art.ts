@@ -16,21 +16,25 @@ let loading: Promise<void> | undefined;
 function platformKind(platform: Platform, worldKind: string) {
   return platform.motion === 'water'
     ? 'lotus'
-    : platform.motion === 'fall'
-      ? 'bamboo'
-      : worldKind === 'mountain'
-        ? 'mountain'
-        : ['city', 'castle'].includes(worldKind)
-          ? 'ceramic'
-          : worldKind === 'night'
-            ? 'lantern'
-            : ['garden', 'forest', 'savanna'].includes(worldKind)
-              ? 'earth'
-              : worldKind === 'water'
-                ? platform.ground
-                  ? 'ceramic'
-                  : 'lotus'
-                : 'cloud';
+    : platform.motion === 'spring'
+      ? 'lotus'
+      : platform.motion === 'fall'
+        ? ['mountain', 'crystal', 'night'].includes(worldKind)
+          ? 'cloud'
+          : 'bamboo'
+        : worldKind === 'mountain'
+          ? 'mountain'
+          : ['city', 'castle'].includes(worldKind)
+            ? 'ceramic'
+            : worldKind === 'night'
+              ? 'lantern'
+              : ['garden', 'forest', 'savanna'].includes(worldKind)
+                ? 'earth'
+                : worldKind === 'water'
+                  ? platform.ground
+                    ? 'ceramic'
+                    : 'lotus'
+                  : 'cloud';
 }
 
 export function loadPlatformArt() {
