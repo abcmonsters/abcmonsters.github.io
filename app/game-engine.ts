@@ -32,7 +32,7 @@ function difficultyProfile(level: number) {
   const tier = Math.floor(level / 5);
   return {
     enemyCount: 6 + tier,
-    activeLimit: level < 10 ? 1 : 2,
+    activeLimit: level < 9 ? 1 : level < 20 ? 2 : 3,
     zoneBehind: 230 + tier * 14,
     zoneAhead: 285 + tier * 18,
     pursuitSpeed: 105 + level * 3.2,
@@ -1149,6 +1149,15 @@ export function updateGame(
       wendySay(g, `${food.name} ngon quá—tim đầy lên!`);
     }
   }
+  const engagedEnemies = new Set(
+    g.enemies
+      .filter((enemy) => enemy.activated && !enemy.dead)
+      .sort(
+        (a, b) =>
+          Math.abs(a.x - p.x) - Math.abs(b.x - p.x) || a.origin - b.origin,
+      )
+      .slice(0, profile.activeLimit),
+  );
   for (const e of g.enemies) {
     if (e.dead) continue;
     if (e.burnTickAt > 0 && g.time >= e.burnTickAt) {
@@ -1206,7 +1215,7 @@ export function updateGame(
       continue;
     }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
-    e.alert = true;
+    e.alert = engagedEnemies.has(e);
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low = airborne(e.behavior)
       ? 20
