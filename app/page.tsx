@@ -216,6 +216,9 @@ export default function Home() {
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
+  const haptic = useCallback((pattern: number | number[]) => {
+    if ('vibrate' in navigator) navigator.vibrate(pattern);
+  }, []);
   const playEndingClip = useCallback((scene: number) => {
     const sound = endingAudio.current;
     if (!sound) return;
@@ -516,6 +519,7 @@ export default function Home() {
         input.current.earth = false;
         for (const e of g.events) {
           if (e.type === 'collect') {
+            haptic([18, 28, 18]);
             const l = String.fromCharCode(65 + g.level),
               w = WORDS[g.level];
             const phrase =
@@ -538,9 +542,14 @@ export default function Home() {
               flash(`${e.noun[0]} · ${e.noun[1]}`);
               say(e.noun[0]);
             }
-            if (e.type === 'stomp') tone(560);
-          } else if (e.type === 'jump') tone(310);
-          else if (e.type === 'earth') {
+            if (e.type === 'stomp') {
+              haptic(28);
+              tone(560);
+            }
+          } else if (e.type === 'jump') {
+            haptic(10);
+            tone(310);
+          } else if (e.type === 'earth') {
             const character =
               CHARACTERS.find((candidate) => candidate.id === e.hero) ??
               CHARACTERS[0];
@@ -556,13 +565,20 @@ export default function Home() {
               `${character.name} · HỆ ${character.element.toUpperCase()} · ${action}`,
             );
             tone(230);
-          } else if (e.type === 'earthHit') tone(120);
-          else if (e.type === 'heal') {
+          } else if (e.type === 'earthHit') {
+            haptic([24, 18, 32]);
+            tone(120);
+          } else if (e.type === 'heal') {
+            haptic([14, 24, 14]);
             flash(`${e.food} · Hồi 1 tim ♥`);
             tone(880);
-          } else if (e.type === 'hurt') tone(140);
-          else if (e.type === 'stomp') tone(440);
-          else if (e.type === 'quiz')
+          } else if (e.type === 'hurt') {
+            haptic(55);
+            tone(140);
+          } else if (e.type === 'stomp') {
+            haptic(28);
+            tone(440);
+          } else if (e.type === 'quiz')
             say(
               `${String.fromCharCode(65 + g.level)} is for ${WORDS[g.level][0]}`,
             );
@@ -586,7 +602,7 @@ export default function Home() {
       cancelAnimationFrame(frame);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
     };
-  }, [flash, say, tone]);
+  }, [flash, haptic, say, tone]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('button,input,[role="dialog"]'))
@@ -796,6 +812,7 @@ export default function Home() {
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
+      if (key === 'earth') haptic(12);
       if (game.current.mode === 'playing') input.current[key] = true;
     },
     onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => {
