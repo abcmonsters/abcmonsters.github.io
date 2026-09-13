@@ -119,6 +119,7 @@ export type Game = {
     stride: number;
   };
   hp: number;
+  damageTaken: number;
   stars: number;
   score: number;
   combo: number;
@@ -675,6 +676,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       stride: 0,
     },
     hp: 3,
+    damageTaken: 0,
     stars: 0,
     score: 0,
     combo: 0,
@@ -848,6 +850,7 @@ function learn(g: Game, noun: Noun, type: 'encounter' | 'stomp') {
 export function hurt(g: Game, fall = false) {
   if (g.mode !== 'playing' || (g.player.invincible > 0 && !fall)) return;
   g.hp = fall && g.sky ? 0 : g.hp - 1;
+  g.damageTaken++;
   g.combo = 0;
   g.shake = 0.25;
   g.events.push({ type: 'hurt' });

@@ -86,17 +86,46 @@ export const normalizeProgress = (value: unknown) => {
   return sequence;
 };
 
+export const normalizeRatings = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, rating]) => {
+      const level = Number(key),
+        stars = Number(rating);
+      return Number.isInteger(level) &&
+        level >= 0 &&
+        level < 26 &&
+        Number.isInteger(stars) &&
+        stars >= 1 &&
+        stars <= 3
+        ? [[String(level), stars]]
+        : [];
+    }),
+  ) as Record<string, number>;
+};
+
 export async function loadCloudProgress(uid: string) {
   if (!database) return [];
   const snapshot = await getDoc(doc(database, 'players', uid));
   return normalizeProgress(snapshot.data()?.completed);
 }
 
-export async function saveCloudProgress(uid: string, completed: number[]) {
+export async function loadCloudRatings(uid: string) {
+  if (!database) return {};
+  const snapshot = await getDoc(doc(database, 'players', uid));
+  return normalizeRatings(snapshot.data()?.ratings);
+}
+
+export async function saveCloudProgress(
+  uid: string,
+  completed: number[],
+  ratings?: Record<string, number>,
+) {
   if (!database) return;
-  await setDoc(
-    doc(database, 'players', uid),
-    { completed: normalizeProgress(completed), updatedAt: serverTimestamp() },
-    { merge: true },
-  );
+  const payload: Record<string, unknown> = {
+    completed: normalizeProgress(completed),
+    updatedAt: serverTimestamp(),
+  };
+  if (ratings) payload.ratings = normalizeRatings(ratings);
+  await setDoc(doc(database, 'players', uid), payload, { merge: true });
 }

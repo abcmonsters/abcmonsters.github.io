@@ -15,7 +15,9 @@ import CharacterChoicePortrait from './character-choice-portrait';
 import {
   cloudProgressEnabled,
   loadCloudProgress,
+  loadCloudRatings,
   normalizeProgress,
+  normalizeRatings,
   saveCloudProgress,
   signInWithGoogle,
   signOutProgressUser,
@@ -143,8 +145,12 @@ export default function Home() {
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
     [stars, setStars] = useState(0),
+    [resultStars, setResultStars] = useState(0),
+    [resultCollectedAll, setResultCollectedAll] = useState(false),
+    [resultPerfectHealth, setResultPerfectHealth] = useState(false),
     [muted, setMuted] = useState(false),
     [completed, setCompleted] = useState<number[]>([]),
+    [ratings, setRatings] = useState<Record<string, number>>({}),
     [mapOpen, setMapOpen] = useState(false),
     [wordbookOpen, setWordbookOpen] = useState(false),
     [wordbookLevel, setWordbookLevel] = useState(0),
@@ -174,8 +180,10 @@ export default function Home() {
     ),
     [cloudStatus, setCloudStatus] = useState<
       'idle' | 'syncing' | 'saved' | 'error'
-    >('idle');
+    >('idle'),
+    [cloudReady, setCloudReady] = useState(false);
   const completedRef = useRef<number[]>([]);
+  const ratingsRef = useRef<Record<string, number>>({});
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
@@ -351,6 +359,9 @@ export default function Home() {
       setMode('ready');
       setHp(3);
       setStars(0);
+      setResultStars(0);
+      setResultCollectedAll(false);
+      setResultPerfectHealth(false);
       setScore(0);
       setLearned([]);
       setEarthReady(false);
@@ -380,40 +391,62 @@ export default function Home() {
   useEffect(() => {
     completedRef.current = completed;
   }, [completed]);
+  useEffect(() => {
+    ratingsRef.current = ratings;
+  }, [ratings]);
   useEffect(
     () =>
       watchProgressUser(async (user) => {
         setProgressUser(user);
         if (!user) {
+          setCloudReady(false);
           setCloudStatus('idle');
           return;
         }
+        setCloudReady(false);
         setGuestMode(false);
         setCloudStatus('syncing');
         try {
-          const cloud = await loadCloudProgress(user.uid),
-            merged = normalizeProgress([...completedRef.current, ...cloud]);
+          const [cloud, cloudRatings] = await Promise.all([
+              loadCloudProgress(user.uid),
+              loadCloudRatings(user.uid),
+            ]),
+            merged = normalizeProgress([...completedRef.current, ...cloud]),
+            mergedRatings = { ...ratingsRef.current };
+          for (const [ratingLevel, cloudRating] of Object.entries(cloudRatings))
+            mergedRatings[ratingLevel] = Math.max(
+              mergedRatings[ratingLevel] ?? 0,
+              cloudRating,
+            );
           completedRef.current = merged;
+          ratingsRef.current = mergedRatings;
           setCompleted(merged);
+          setRatings(mergedRatings);
           localStorage.setItem('mon-alphabet-progress', JSON.stringify(merged));
-          await saveCloudProgress(user.uid, merged);
+          localStorage.setItem(
+            'mon-alphabet-ratings',
+            JSON.stringify(mergedRatings),
+          );
+          await saveCloudProgress(user.uid, merged, mergedRatings);
+          setCloudReady(true);
           setCloudStatus('saved');
         } catch {
+          setCloudReady(true);
           setCloudStatus('error');
         }
       }),
     [],
   );
   useEffect(() => {
-    if (!progressUser) return;
+    if (!progressUser || !cloudReady) return;
     const timeout = setTimeout(() => {
       setCloudStatus('syncing');
-      void saveCloudProgress(progressUser.uid, completed)
+      void saveCloudProgress(progressUser.uid, completed, ratings)
         .then(() => setCloudStatus('saved'))
         .catch(() => setCloudStatus('error'));
     }, 350);
     return () => clearTimeout(timeout);
-  }, [completed, progressUser]);
+  }, [cloudReady, completed, progressUser, ratings]);
   useEffect(() => {
     if (!storyOpen || !storyStarted) return;
     if (usesDesktopStoryClips()) return;
@@ -439,6 +472,11 @@ export default function Home() {
           localStorage.getItem('mon-alphabet-progress') || '[]',
         );
         if (Array.isArray(saved)) setCompleted(normalizeProgress(saved));
+        const savedRatings = normalizeRatings(
+          JSON.parse(localStorage.getItem('mon-alphabet-ratings') || '{}'),
+        );
+        ratingsRef.current = savedRatings;
+        setRatings(savedRatings);
       } catch {}
     });
     return () => cancelAnimationFrame(id);
@@ -612,6 +650,9 @@ export default function Home() {
   function replay() {
     game.current = createGame(level, hero);
     setStars(0);
+    setResultStars(0);
+    setResultCollectedAll(false);
+    setResultPerfectHealth(false);
     setHp(3);
     setScore(0);
     setLearned([]);
@@ -643,16 +684,32 @@ export default function Home() {
     tone(700);
   }
   function finishQuiz() {
-    const next = [...new Set([...completed, level])];
+    const collectedAll = game.current.pickups.every((pickup) => pickup.got),
+      perfectHealth = game.current.damageTaken === 0,
+      next = [...new Set([...completed, level])],
+      earnedStars = 1 + (collectedAll ? 1 : 0) + (perfectHealth ? 1 : 0),
+      nextRatings = {
+        ...ratings,
+        [level]: Math.max(ratings[String(level)] ?? 0, earnedStars),
+      };
     completedRef.current = next;
+    ratingsRef.current = nextRatings;
     setCompleted(next);
+    setRatings(nextRatings);
+    setResultStars(earnedStars);
+    setResultCollectedAll(collectedAll);
+    setResultPerfectHealth(perfectHealth);
     if (!guestMode)
       try {
         localStorage.setItem('mon-alphabet-progress', JSON.stringify(next));
+        localStorage.setItem(
+          'mon-alphabet-ratings',
+          JSON.stringify(nextRatings),
+        );
       } catch {}
     if (progressUser) {
       setCloudStatus('syncing');
-      void saveCloudProgress(progressUser.uid, next)
+      void saveCloudProgress(progressUser.uid, next, nextRatings)
         .then(() => setCloudStatus('saved'))
         .catch(() => setCloudStatus('error'));
     }
@@ -689,7 +746,11 @@ export default function Home() {
     if (!progressUser) return;
     setCloudStatus('syncing');
     try {
-      await saveCloudProgress(progressUser.uid, completedRef.current);
+      await saveCloudProgress(
+        progressUser.uid,
+        completedRef.current,
+        ratingsRef.current,
+      );
       setCloudStatus('saved');
     } catch {
       setCloudStatus('error');
@@ -699,6 +760,8 @@ export default function Home() {
     if (progressUser) await signOutProgressUser();
     completedRef.current = [];
     setCompleted([]);
+    setRatings({});
+    ratingsRef.current = {};
     setGuestMode(true);
     setCloudStatus('idle');
   }
@@ -1381,7 +1444,10 @@ export default function Home() {
                 </span>
                 <div className="victory-stars">
                   {[0, 1, 2].map((i) => (
-                    <span key={i} style={{ opacity: i < stars ? 1 : 0.2 }}>
+                    <span
+                      key={i}
+                      style={{ opacity: i < resultStars ? 1 : 0.2 }}
+                    >
                       ★
                     </span>
                   ))}
@@ -1432,8 +1498,17 @@ export default function Home() {
                 </div>
                 <p>
                   <Check size={16} />
-                  Đã học chữ {letter} · {score} điểm
+                  Đã học chữ {letter} · {score} điểm · {resultStars}/3 sao
                 </p>
+                <div className="rating-reasons">
+                  <span className="earned">★ Hoàn thành</span>
+                  <span className={resultCollectedAll ? 'earned' : ''}>
+                    ★ Nhặt đủ 3 vật phẩm
+                  </span>
+                  <span className={resultPerfectHealth ? 'earned' : ''}>
+                    ★ Không mất tim
+                  </span>
+                </div>
                 <button
                   className="primary-button"
                   onClick={() => chooseLevel((level + 1) % 26)}

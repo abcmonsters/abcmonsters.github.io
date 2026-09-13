@@ -1472,6 +1472,27 @@ footer span {
   text-shadow: 0 3px #b08436;
   margin-top: 15px;
 }
+.rating-reasons {
+  width: min(100%, 330px);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: -6px auto 13px;
+}
+.rating-reasons span {
+  padding: 7px 5px;
+  color: #87967f;
+  background: #edf1df;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: center;
+}
+.rating-reasons span.earned {
+  color: #5f641e;
+  background: #f3e8a6;
+  font-weight: 800;
+}
 .learned-word {
   padding: 10px 0 13px;
 }
