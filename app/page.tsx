@@ -371,31 +371,40 @@ export default function Home() {
     setMode(m);
     input.current = { left: false, right: false, jump: false, earth: false };
   }, []);
+  const prepareLevel = useCallback((n: number) => {
+    const safeLevel = Math.max(0, Math.min(25, n));
+    game.current = createGame(safeLevel, game.current.hero);
+    setLevel(safeLevel);
+    setMode('ready');
+    setHp(3);
+    setStars(0);
+    setResultStars(0);
+    setResultCollectedAll(false);
+    setResultPerfectHealth(false);
+    setScore(0);
+    setLearned([]);
+    setEarthReady(false);
+    setNotice('');
+    setQuizHint('');
+    setQuizResult('idle');
+    setQuizRound(0);
+    setQuizInput('');
+    setMapOpen(false);
+    input.current = { left: false, right: false, jump: false, earth: false };
+    stopVoice();
+  }, []);
+  const resumeLatestLevel = useCallback(
+    (progress: number[]) => prepareLevel(Math.min(progress.length, 25)),
+    [prepareLevel],
+  );
   const chooseLevel = useCallback(
     (n: number) => {
       const nextRequired = completedRef.current.length;
       if (!completedRef.current.includes(n) && n !== nextRequired) return;
-      game.current = createGame(n, hero);
-      setLevel(n);
-      setMode('ready');
-      setHp(3);
-      setStars(0);
-      setResultStars(0);
-      setResultCollectedAll(false);
-      setResultPerfectHealth(false);
-      setScore(0);
-      setLearned([]);
-      setEarthReady(false);
-      setNotice('');
-      setQuizHint('');
-      setQuizResult('idle');
-      setQuizRound(0);
-      setQuizInput('');
-      setMapOpen(false);
-      input.current = { left: false, right: false, jump: false, earth: false };
-      stopVoice();
+      game.current.hero = hero;
+      prepareLevel(n);
     },
-    [hero],
+    [hero, prepareLevel],
   );
   useEffect(() => () => stopVoice(), []);
   useEffect(() => {
@@ -443,6 +452,7 @@ export default function Home() {
           ratingsRef.current = mergedRatings;
           setCompleted(merged);
           setRatings(mergedRatings);
+          if (game.current.mode === 'ready') resumeLatestLevel(merged);
           localStorage.setItem('mon-alphabet-progress', JSON.stringify(merged));
           localStorage.setItem(
             'mon-alphabet-ratings',
@@ -456,7 +466,7 @@ export default function Home() {
           setCloudStatus('error');
         }
       }),
-    [],
+    [resumeLatestLevel],
   );
   useEffect(() => {
     if (!progressUser || !cloudReady) return;
@@ -492,7 +502,12 @@ export default function Home() {
         const saved = JSON.parse(
           localStorage.getItem('mon-alphabet-progress') || '[]',
         );
-        if (Array.isArray(saved)) setCompleted(normalizeProgress(saved));
+        if (Array.isArray(saved)) {
+          const savedProgress = normalizeProgress(saved);
+          completedRef.current = savedProgress;
+          setCompleted(savedProgress);
+          if (game.current.mode === 'ready') resumeLatestLevel(savedProgress);
+        }
         const savedRatings = normalizeRatings(
           JSON.parse(localStorage.getItem('mon-alphabet-ratings') || '{}'),
         );
@@ -501,7 +516,7 @@ export default function Home() {
       } catch {}
     });
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [resumeLatestLevel]);
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
@@ -797,6 +812,7 @@ export default function Home() {
     setCompleted([]);
     setRatings({});
     ratingsRef.current = {};
+    prepareLevel(0);
     setGuestMode(true);
     setCloudStatus('idle');
   }
