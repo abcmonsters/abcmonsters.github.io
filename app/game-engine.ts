@@ -75,6 +75,9 @@ export type Enemy = Rect & {
   fireTimer: number;
   warning: number;
   wakeTimer: number;
+  slowUntil: number;
+  burnUntil: number;
+  burnTickAt: number;
   origin: number;
   baseY: number;
   platformIndex: number;
@@ -448,6 +451,9 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       fireTimer: profile.shotCooldown + 0.7 + (i % 3) * 0.35,
       warning: 0,
       wakeTimer: 0,
+      slowUntil: 0,
+      burnUntil: 0,
+      burnTickAt: 0,
       x: origin,
       y: baseY,
       w: 48,
@@ -1060,6 +1066,19 @@ export function updateGame(
   }
   for (const e of g.enemies) {
     if (e.dead) continue;
+    if (e.burnTickAt > 0 && g.time >= e.burnTickAt) {
+      e.burnTickAt = 0;
+      e.rockHp = Math.max(0, e.rockHp - 1);
+      burst(g, e.x + e.w / 2, e.y + e.h / 2, '#ff7a35', 10);
+      if (e.rockHp <= 0) {
+        e.dead = true;
+        e.defeatedAt = g.time;
+        g.score += 70;
+        learn(g, e.noun, 'stomp');
+        wendySay(g, `${e.noun[0]} bị lửa hạ rồi!`);
+        continue;
+      }
+    }
     const ground = g.platforms[e.platformIndex];
     if (ground && !['fly', 'swim', 'hover'].includes(e.behavior)) {
       e.origin += ground.dx;
@@ -1114,7 +1133,8 @@ export function updateGame(
       ? p.x + p.vx * (e.behavior === 'hop' ? 0.28 : 0.12)
       : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
     const direction = Math.sign(targetX - e.x);
-    const pace = profile.pursuitSpeed * enemyPace(e.noun[0]);
+    const slowed = e.slowUntil > g.time,
+      pace = profile.pursuitSpeed * enemyPace(e.noun[0]) * (slowed ? 0.42 : 1);
     if (e.behavior === 'drop') {
       e.vx = 0;
       e.dropClock -= dt;
@@ -1331,6 +1351,15 @@ export function updateGame(
     for (const e of g.enemies) {
       if (!e.dead && overlaps(rock, e)) {
         e.rockHp = Math.max(0, e.rockHp - 2);
+        if (rock.hero === 'rio') e.slowUntil = g.time + 2.6;
+        if (rock.hero === 'sol' && e.rockHp > 0) {
+          e.burnUntil = g.time + 1.2;
+          e.burnTickAt = g.time + 0.72;
+        }
+        if (rock.hero === 'mori' && e.rockHp > 0)
+          e.wakeTimer = Math.max(e.wakeTimer, 0.45);
+        if (rock.hero === 'mon')
+          e.vx += Math.sign(rock.vx || g.player.facing) * 230;
         rock.life = 0;
         g.score += e.rockHp <= 0 ? 70 : 15;
         g.shake = 0.1;
@@ -1347,7 +1376,17 @@ export function updateGame(
           learn(g, e.noun, 'stomp');
           wendySay(g, `${e.noun[0]} hết đường chạy nhé!`);
         } else {
-          wendySay(g, `Trúng rồi! ${e.noun[0]} còn ${e.rockHp} máu!`, 1.7);
+          wendySay(
+            g,
+            rock.hero === 'rio'
+              ? `Nước làm ${e.noun[0]} chậm lại rồi!`
+              : rock.hero === 'sol'
+                ? `${e.noun[0]} đang bốc cháy!`
+                : rock.hero === 'mori'
+                  ? `Khúc cây làm ${e.noun[0]} choáng rồi!`
+                  : `Đá đẩy lùi ${e.noun[0]}—còn ${e.rockHp} máu!`,
+            1.7,
+          );
         }
         g.events.push({ type: 'earthHit', noun: e.noun });
         break;
@@ -1773,6 +1812,28 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
+      if (e.slowUntil > g.time) {
+        ctx.strokeStyle = '#64dff4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(
+          x + e.w / 2,
+          e.y + e.h + 5,
+          21 + Math.sin(t * 5) * 3,
+          5,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+      if (e.burnUntil > g.time) {
+        ctx.fillStyle = '#ff7a3570';
+        ctx.beginPath();
+        ctx.arc(x + e.w / 2, e.y + 8, 9 + Math.sin(t * 11) * 2, 0, Math.PI * 2);
+        ctx.fill();
+        text('♨', x + e.w / 2, e.y + 12, 13, '#ffdb72', 'Arial');
+      }
       if (e.rockHp < 3) {
         rect(x + 5, e.y - 28, 42, 8, '#1f2e25cc');
         for (let hit = 0; hit < 3; hit++)
