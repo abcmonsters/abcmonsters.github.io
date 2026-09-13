@@ -164,7 +164,7 @@ export default function Home() {
     [progressUser, setProgressUser] = useState<ProgressUser | null>(null),
     [guestMode, setGuestMode] = useState(false),
     [onboardingStep, setOnboardingStep] = useState<'character' | 'account'>(
-      'character',
+      'account',
     ),
     [cloudStatus, setCloudStatus] = useState<
       'idle' | 'syncing' | 'saved' | 'error'
@@ -1048,9 +1048,80 @@ export default function Home() {
             {mode === 'ready' && (
               <div className="start-screen">
                 <div className="start-card">
-                  {onboardingStep === 'character' ? (
+                  {onboardingStep === 'account' ? (
                     <>
                       <span className="step-number">BƯỚC 1 / 2</span>
+                      <span className="game-kicker">CHỌN CÁCH CHƠI</span>
+                      <h2>
+                        ĐĂNG NHẬP <em>HOẶC CHƠI KHÁCH</em>
+                      </h2>
+                      <div className="start-account-options">
+                        {cloudProgressEnabled && (
+                          <button
+                            className={`start-account ${progressUser ? 'signed-in' : ''}`}
+                            type="button"
+                            onClick={() =>
+                              void (progressUser
+                                ? syncProgressNow()
+                                : handleGoogleAccount())
+                            }
+                          >
+                            {progressUser?.photoURL ? (
+                              <Image
+                                unoptimized
+                                src={progressUser.photoURL}
+                                alt=""
+                                width={32}
+                                height={32}
+                              />
+                            ) : (
+                              <LogIn size={20} />
+                            )}
+                            <span>
+                              <b>
+                                {progressUser
+                                  ? (progressUser.displayName ??
+                                    progressUser.email)
+                                  : 'Đăng nhập bằng Google'}
+                              </b>
+                              <small>
+                                {progressUser
+                                  ? cloudStatus === 'syncing'
+                                    ? 'Đang đồng bộ tiến độ…'
+                                    : cloudStatus === 'error'
+                                      ? 'Có lỗi đồng bộ · chạm để thử lại'
+                                      : `Đã lưu ${completed.length}/26 màn`
+                                  : 'Lưu và chơi tiếp trên thiết bị khác'}
+                              </small>
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={`guest-button ${guestMode ? 'selected' : ''}`}
+                          onClick={() => void playAsGuest()}
+                        >
+                          {guestMode ? <Check size={20} /> : <Play size={20} />}
+                          <span>
+                            <b>Chơi với tư cách khách</b>
+                            <small>Không lưu kết quả sau khi thoát</small>
+                          </span>
+                        </button>
+                      </div>
+                      <button
+                        className="primary-button"
+                        disabled={!progressUser && !guestMode}
+                        onClick={() => setOnboardingStep('character')}
+                      >
+                        {!progressUser && !guestMode
+                          ? 'Chọn Google hoặc chơi khách'
+                          : 'Tiếp tục chọn nhân vật'}
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="step-number">BƯỚC 2 / 2</span>
                       <span className="game-kicker">
                         CHỌN NGƯỜI BẠN ĐỒNG HÀNH
                       </span>
@@ -1099,85 +1170,6 @@ export default function Home() {
                           </button>
                         ))}
                       </div>
-                      <button
-                        className="primary-button"
-                        onClick={() => setOnboardingStep('account')}
-                      >
-                        Tiếp tục với {heroInfo.name}
-                        <ChevronRight size={20} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="step-number">BƯỚC 2 / 2</span>
-                      <span className="game-kicker">CHỌN CÁCH LƯU KẾT QUẢ</span>
-                      <div className="chosen-hero">
-                        <CharacterChoicePortrait
-                          character={hero}
-                          label={heroInfo.name}
-                        />
-                        <div>
-                          <b>{heroInfo.name}</b>
-                          <small>Hệ {heroInfo.element}</small>
-                        </div>
-                      </div>
-                      {cloudProgressEnabled && (
-                        <div className="start-account-options">
-                          <button
-                            className={`start-account ${progressUser ? 'signed-in' : ''}`}
-                            type="button"
-                            onClick={() =>
-                              void (progressUser
-                                ? syncProgressNow()
-                                : handleGoogleAccount())
-                            }
-                          >
-                            {progressUser?.photoURL ? (
-                              <Image
-                                unoptimized
-                                src={progressUser.photoURL}
-                                alt=""
-                                width={32}
-                                height={32}
-                              />
-                            ) : (
-                              <LogIn size={20} />
-                            )}
-                            <span>
-                              <b>
-                                {progressUser
-                                  ? (progressUser.displayName ??
-                                    progressUser.email)
-                                  : 'Đăng nhập bằng Google'}
-                              </b>
-                              <small>
-                                {progressUser
-                                  ? cloudStatus === 'syncing'
-                                    ? 'Đang đồng bộ tiến độ…'
-                                    : cloudStatus === 'error'
-                                      ? 'Có lỗi đồng bộ · chạm để thử lại'
-                                      : `Đã lưu ${completed.length}/26 màn`
-                                  : 'Lưu và chơi tiếp trên thiết bị khác'}
-                              </small>
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            className={`guest-button ${guestMode ? 'selected' : ''}`}
-                            onClick={() => void playAsGuest()}
-                          >
-                            {guestMode ? (
-                              <Check size={20} />
-                            ) : (
-                              <Play size={20} />
-                            )}
-                            <span>
-                              <b>Chơi với tư cách khách</b>
-                              <small>Không lưu kết quả sau khi thoát</small>
-                            </span>
-                          </button>
-                        </div>
-                      )}
                       <div className="start-level-info">
                         <div className="level-pill">
                           {letter} is for {word[0]}
@@ -1189,23 +1181,21 @@ export default function Home() {
                       <button
                         className="primary-button"
                         onClick={start}
-                        disabled={!loaded || (!progressUser && !guestMode)}
+                        disabled={!loaded}
                       >
                         <Play size={20} fill="currentColor" />
                         {assetError
                           ? 'Không tải được hình nhân vật'
                           : !loaded
                             ? 'Đang tải nhân vật…'
-                            : !progressUser && !guestMode
-                              ? 'Chọn Google hoặc chơi khách'
-                              : 'Bắt đầu phiêu lưu'}
+                            : 'Bắt đầu phiêu lưu'}
                       </button>
                       <button
                         type="button"
                         className="text-button onboarding-back"
-                        onClick={() => setOnboardingStep('character')}
+                        onClick={() => setOnboardingStep('account')}
                       >
-                        <ArrowLeft size={15} /> Đổi nhân vật
+                        <ArrowLeft size={15} /> Đổi cách chơi
                       </button>
                     </>
                   )}
