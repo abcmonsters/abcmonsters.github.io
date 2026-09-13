@@ -920,7 +920,7 @@ export function hurt(g: Game, fall = false) {
       ? g.recentFalls >= 3
         ? 'Đợi bệ tới gần rồi mới nhảy—chậm một nhịp thôi!'
         : g.recentFalls === 2
-          ? 'Nhìn điểm đáp nhé—đừng vội vàng!'
+          ? 'Tớ bật hỗ trợ nhảy nhé—mép bệ sẽ dễ đáp hơn!'
           : 'Ơ kìa, đất ở dưới mà!'
       : 'Tim của cậu đau, tớ vẫn ổn!',
     2.8,
@@ -1043,9 +1043,10 @@ export function updateGame(
       p.y += plat.dy;
     }
   }
-  if (input.jump) g.jumpBuffer = 0.14;
+  const jumpAssist = g.recentFalls >= 2;
+  if (input.jump) g.jumpBuffer = jumpAssist ? 0.2 : 0.14;
   else g.jumpBuffer = Math.max(0, g.jumpBuffer - dt);
-  if (p.grounded) g.coyote = 0.1;
+  if (p.grounded) g.coyote = jumpAssist ? 0.18 : 0.1;
   else g.coyote = Math.max(0, g.coyote - dt);
   const dir = Number(input.right) - Number(input.left),
     target = dir * 240;
@@ -1081,9 +1082,9 @@ export function updateGame(
   for (const plat of g.platforms) {
     if (
       p.vy >= 0 &&
-      p.x + p.w > plat.x + 3 &&
-      p.x < plat.x + plat.w - 3 &&
-      oldBottom <= plat.y + 4 &&
+      p.x + p.w > plat.x + (jumpAssist ? -7 : 3) &&
+      p.x < plat.x + plat.w - (jumpAssist ? -7 : 3) &&
+      oldBottom <= plat.y + (jumpAssist ? 10 : 4) &&
       p.y + p.h >= plat.y
     ) {
       const springLanding = plat.motion === 'spring';
