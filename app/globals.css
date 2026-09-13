@@ -309,6 +309,16 @@ a {
   color: #d5ef75;
   background: #506737;
 }
+.alphabet button.locked {
+  color: #718276;
+  background: #071b15b8;
+  border-color: #ffffff0a;
+  box-shadow: none;
+  opacity: 0.58;
+}
+.alphabet button.locked:hover {
+  background: #071b15b8;
+}
 .world-note {
   border-top: 1px solid #ffffff18;
   margin-top: 26px;

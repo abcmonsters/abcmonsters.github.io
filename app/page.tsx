@@ -15,6 +15,7 @@ import CharacterChoicePortrait from './character-choice-portrait';
 import {
   cloudProgressEnabled,
   loadCloudProgress,
+  normalizeProgress,
   saveCloudProgress,
   signInWithGoogle,
   signOutProgressUser,
@@ -49,6 +50,7 @@ import {
   Cloud,
   LogIn,
   LogOut,
+  Lock,
 } from 'lucide-react';
 import {
   createGame,
@@ -336,6 +338,8 @@ export default function Home() {
   }, []);
   const chooseLevel = useCallback(
     (n: number) => {
+      const nextRequired = completedRef.current.length;
+      if (!completedRef.current.includes(n) && n !== nextRequired) return;
       game.current = createGame(n, hero);
       setLevel(n);
       setMode('ready');
@@ -381,9 +385,7 @@ export default function Home() {
         setCloudStatus('syncing');
         try {
           const cloud = await loadCloudProgress(user.uid),
-            merged = [...new Set([...completedRef.current, ...cloud])].sort(
-              (a, b) => a - b,
-            );
+            merged = normalizeProgress([...completedRef.current, ...cloud]);
           completedRef.current = merged;
           setCompleted(merged);
           localStorage.setItem('mon-alphabet-progress', JSON.stringify(merged));
@@ -429,13 +431,7 @@ export default function Home() {
         const saved = JSON.parse(
           localStorage.getItem('mon-alphabet-progress') || '[]',
         );
-        if (Array.isArray(saved))
-          setCompleted(
-            saved.filter(
-              (n: unknown) =>
-                Number.isInteger(n) && Number(n) >= 0 && Number(n) < 26,
-            ),
-          );
+        if (Array.isArray(saved)) setCompleted(normalizeProgress(saved));
       } catch {}
     });
     return () => cancelAnimationFrame(id);
@@ -637,6 +633,7 @@ export default function Home() {
   }
   function finishQuiz() {
     const next = [...new Set([...completed, level])];
+    completedRef.current = next;
     setCompleted(next);
     if (!guestMode)
       try {
@@ -738,18 +735,22 @@ export default function Home() {
   });
   const alphabet = (
     <div className="alphabet">
-      {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l, i) => (
-        <button
-          key={l}
-          onClick={() => chooseLevel(i)}
-          aria-label={`Màn ${l}${completed.includes(i) ? ', đã hoàn thành' : ''}`}
-          aria-current={i === level ? 'step' : undefined}
-          className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed' : ''}`}
-        >
-          {l}
-          {completed.includes(i) && <span className="done-dot" />}
-        </button>
-      ))}
+      {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l, i) => {
+        const unlocked = completed.includes(i) || i === completed.length;
+        return (
+          <button
+            key={l}
+            onClick={() => chooseLevel(i)}
+            disabled={!unlocked}
+            aria-label={`Màn ${l}${completed.includes(i) ? ', đã hoàn thành' : unlocked ? ', màn tiếp theo' : ', chưa mở khóa'}`}
+            aria-current={i === level ? 'step' : undefined}
+            className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed ' : ''}${!unlocked ? 'locked' : ''}`}
+          >
+            {unlocked ? l : <Lock size={12} aria-hidden="true" />}
+            {completed.includes(i) && <span className="done-dot" />}
+          </button>
+        );
+      })}
     </div>
   );
   return (
@@ -1630,7 +1631,8 @@ export default function Home() {
             </p>
             {alphabet}
             <p className="map-legend">
-              <span className="world-dot" /> Chữ có chấm xanh: đã hoàn thành
+              <span className="world-dot" /> Hoàn thành theo thứ tự A–Z · Chữ đã
+              qua có thể chơi lại
             </p>
           </dialog>
         </div>

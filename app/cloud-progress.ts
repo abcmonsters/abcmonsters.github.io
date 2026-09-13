@@ -75,28 +75,28 @@ export async function signOutProgressUser() {
   if (auth) await signOut(auth);
 }
 
-const cleanProgress = (value: unknown) =>
-  Array.isArray(value)
-    ? [
-        ...new Set(
-          value.filter(
-            (item) => Number.isInteger(item) && item >= 0 && item < 26,
-          ),
-        ),
-      ].sort((a, b) => a - b)
-    : [];
+export const normalizeProgress = (value: unknown) => {
+  if (!Array.isArray(value)) return [];
+  const completed = new Set(
+      value.filter((item) => Number.isInteger(item) && item >= 0 && item < 26),
+    ),
+    sequence: number[] = [];
+  for (let level = 0; level < 26 && completed.has(level); level++)
+    sequence.push(level);
+  return sequence;
+};
 
 export async function loadCloudProgress(uid: string) {
   if (!database) return [];
   const snapshot = await getDoc(doc(database, 'players', uid));
-  return cleanProgress(snapshot.data()?.completed);
+  return normalizeProgress(snapshot.data()?.completed);
 }
 
 export async function saveCloudProgress(uid: string, completed: number[]) {
   if (!database) return;
   await setDoc(
     doc(database, 'players', uid),
-    { completed: cleanProgress(completed), updatedAt: serverTimestamp() },
+    { completed: normalizeProgress(completed), updatedAt: serverTimestamp() },
     { merge: true },
   );
 }
