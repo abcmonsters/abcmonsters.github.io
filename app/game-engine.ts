@@ -74,6 +74,7 @@ export type Enemy = Rect & {
   zoneEnd: number;
   fireTimer: number;
   warning: number;
+  wakeTimer: number;
   origin: number;
   baseY: number;
   platformIndex: number;
@@ -158,6 +159,8 @@ export type Game = {
   particles: Particle[];
   checkpoint: number;
   checkpointY: number;
+  checkpointTarget: number;
+  checkpointReached: boolean;
   jumpBuffer: number;
   coyote: number;
   doubleJumpUnlocked: boolean;
@@ -443,6 +446,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       zoneEnd: Math.min(worldWidth, origin + profile.zoneAhead),
       fireTimer: profile.shotCooldown + 0.7 + (i % 3) * 0.35,
       warning: 0,
+      wakeTimer: 0,
       x: origin,
       y: baseY,
       w: 48,
@@ -698,6 +702,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     particles: [],
     checkpoint: 60,
     checkpointY: 496,
+    checkpointTarget: worldWidth * 0.5,
+    checkpointReached: false,
     jumpBuffer: 0,
     coyote: 0,
     doubleJumpUnlocked: false,
@@ -986,19 +992,14 @@ export function updateGame(
       p.vy = 0;
       p.grounded = true;
       g.doubleJumpReady = g.doubleJumpUnlocked;
-      const reachedNewRouteCheckpoint =
-        p.x > g.checkpoint + 850 && p.x < g.worldWidth - 600;
       if (
-        plat.ground &&
-        p.x > plat.x + 40 &&
-        p.x < plat.x + plat.w - 100 &&
+        !g.checkpointReached &&
+        p.x >= g.checkpointTarget &&
         p.x < g.worldWidth - 600
       ) {
         g.checkpoint = p.x;
         g.checkpointY = p.y;
-      } else if (reachedNewRouteCheckpoint) {
-        g.checkpoint = p.x;
-        g.checkpointY = p.y;
+        g.checkpointReached = true;
         wendySay(g, 'Đã lưu điểm này! Rơi cũng không phải đi lại từ đầu.', 2.7);
       }
     }
@@ -1061,6 +1062,7 @@ export function updateGame(
       if (enteredZone && nearbyAttackers < attackerLimit) {
         e.activated = true;
         e.alert = true;
+        e.wakeTimer = Math.max(0.55, 0.9 - g.difficulty * 0.25);
         e.fireTimer = Math.max(1.15, e.fireTimer);
         if (!e.seen) {
           e.seen = true;
@@ -1073,6 +1075,12 @@ export function updateGame(
           e.y += (e.baseY - e.y) * Math.min(1, dt * 8);
         continue;
       }
+    }
+    if (e.wakeTimer > 0) {
+      e.wakeTimer = Math.max(0, e.wakeTimer - dt);
+      e.vx = 0;
+      e.warning = 0;
+      continue;
     }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = true;
@@ -1729,26 +1737,42 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
-      if (e.alert || e.rockHp < 3) {
+      if (e.rockHp < 3) {
+        rect(x + 5, e.y - 28, 42, 8, '#1f2e25cc');
         for (let hit = 0; hit < 3; hit++)
           rect(
             x + 8 + hit * 12,
-            e.y - 24,
+            e.y - 26,
             9,
             4,
             hit < e.rockHp ? '#f0c459' : '#593c2f88',
           );
       }
       // Vocabulary appears when encountered; the enemy itself is only the object.
-      if (e.alert)
-        text(
-          e.warning > 0 ? e.noun[0] + ' !' : '!',
-          x + e.w / 2,
-          e.y - 9,
-          e.warning > 0 ? 12 : 17,
-          '#b84f38',
-          'Arial',
-        );
+      if (e.alert) {
+        if (e.wakeTimer > 0) {
+          ctx.fillStyle = '#fff2b8';
+          ctx.beginPath();
+          ctx.arc(
+            x + e.w / 2,
+            e.y - 13,
+            13 + Math.sin(t * 14) * 2,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+          text('!', x + e.w / 2, e.y - 7, 18, '#b84f38', 'Arial');
+        } else {
+          text(
+            e.warning > 0 ? e.noun[0] + ' !' : '!',
+            x + e.w / 2,
+            e.y - 9,
+            e.warning > 0 ? 12 : 17,
+            '#b84f38',
+            'Arial',
+          );
+        }
+      }
     }
   }
   const b = g.boss,
