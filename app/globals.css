@@ -1322,12 +1322,8 @@ footer span {
   top: 22%;
   left: 12px;
   z-index: 4;
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 18px;
-  align-items: center;
-  gap: 9px;
   width: min(245px, calc(100% - 150px));
-  padding: 7px 9px;
+  padding: 0;
   border: 2px solid #e5bc4e;
   border-radius: 14px;
   background: #173126ec;
@@ -1339,6 +1335,34 @@ footer span {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+.word-reward-main {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 25px 7px 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  touch-action: manipulation;
+}
+.word-reward-close {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fff2bd20;
+  color: #fff2bd;
+  touch-action: manipulation;
 }
 .word-reward img {
   width: 42px;

@@ -155,7 +155,7 @@ export default function Home() {
     [wordbookOpen, setWordbookOpen] = useState(false),
     [wordbookLevel, setWordbookLevel] = useState(0),
     [notice, setNotice] = useState(''),
-    [wordReward, setWordReward] = useState<Noun | null>(null),
+    [wordRewardQueue, setWordRewardQueue] = useState<Noun[]>([]),
     [quizHint, setQuizHint] = useState(''),
     [quizResult, setQuizResult] = useState<'idle' | 'correct' | 'wrong'>(
       'idle',
@@ -185,9 +185,9 @@ export default function Home() {
     [cloudReady, setCloudReady] = useState(false);
   const completedRef = useRef<number[]>([]);
   const ratingsRef = useRef<Record<string, number>>({});
+  const wordReward = wordRewardQueue[0] ?? null;
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wordRewardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
     world = WORLDS[level],
@@ -350,15 +350,23 @@ export default function Home() {
     noticeTimer.current = setTimeout(() => setNotice(''), 3200);
   }, []);
   const showWordReward = useCallback((noun: Noun) => {
-    setWordReward(noun);
-    if (wordRewardTimer.current) clearTimeout(wordRewardTimer.current);
-    wordRewardTimer.current = setTimeout(() => setWordReward(null), 3600);
+    setWordRewardQueue((queue) =>
+      queue.some((queued) => queued[0] === noun[0]) ? queue : [...queue, noun],
+    );
   }, []);
+  const closeWordReward = useCallback(() => {
+    setWordRewardQueue((queue) => queue.slice(1));
+  }, []);
+  useEffect(() => {
+    if (!wordReward) return;
+    const timer = setTimeout(closeWordReward, 3600);
+    return () => clearTimeout(timer);
+  }, [closeWordReward, wordReward]);
   const changeMode = useCallback((m: Mode) => {
     game.current.mode = m;
     if (m !== 'playing') {
       stopVoice();
-      setWordReward(null);
+      setWordRewardQueue([]);
     }
     setMode(m);
     input.current = { left: false, right: false, jump: false, earth: false };
@@ -612,7 +620,6 @@ export default function Home() {
       active = false;
       cancelAnimationFrame(frame);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
-      if (wordRewardTimer.current) clearTimeout(wordRewardTimer.current);
     };
   }, [flash, haptic, say, showWordReward, tone]);
   useEffect(() => {
@@ -1171,26 +1178,36 @@ export default function Home() {
               <output className="pickup-notice">{notice}</output>
             )}
             {wordReward && mode === 'playing' && (
-              <button
-                type="button"
-                className="word-reward"
-                onClick={() => say(wordReward[0])}
-                aria-label={`Nghe từ ${wordReward[0]}`}
-              >
-                <Image
-                  unoptimized
-                  src={nounArtPath(wordReward[0])}
-                  alt=""
-                  width={42}
-                  height={42}
-                />
-                <span>
-                  <small>TỪ VỰNG ĐÃ GIẢI CỨU</small>
-                  <b>{wordReward[0]}</b>
-                  <em>{wordReward[1]}</em>
-                </span>
-                <Volume2 size={17} aria-hidden="true" />
-              </button>
+              <div className="word-reward">
+                <button
+                  type="button"
+                  className="word-reward-main"
+                  onClick={() => say(wordReward[0])}
+                  aria-label={`Nghe từ ${wordReward[0]}`}
+                >
+                  <Image
+                    unoptimized
+                    src={nounArtPath(wordReward[0])}
+                    alt=""
+                    width={42}
+                    height={42}
+                  />
+                  <span>
+                    <small>TỪ VỰNG ĐÃ GIẢI CỨU</small>
+                    <b>{wordReward[0]}</b>
+                    <em>{wordReward[1]}</em>
+                  </span>
+                  <Volume2 size={17} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="word-reward-close"
+                  onClick={closeWordReward}
+                  aria-label="Đóng và xem từ tiếp theo"
+                >
+                  <X size={12} />
+                </button>
+              </div>
             )}
             {mode === 'ready' && (
               <div className="start-screen">
