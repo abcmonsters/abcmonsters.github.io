@@ -480,6 +480,10 @@ export default function Home() {
   useEffect(() => {
     if (!progressUser || !cloudReady) return;
     const timeout = setTimeout(() => {
+      if (!navigator.onLine) {
+        setCloudStatus('error');
+        return;
+      }
       setCloudStatus('syncing');
       void saveCloudProgress(progressUser.uid, completed, ratings, hero)
         .then(() => setCloudStatus('saved'))
@@ -487,6 +491,27 @@ export default function Home() {
     }, 350);
     return () => clearTimeout(timeout);
   }, [cloudReady, completed, hero, progressUser, ratings]);
+  useEffect(() => {
+    if (!progressUser || !cloudReady) return;
+    const retryWhenOnline = () => {
+        setCloudStatus('syncing');
+        void saveCloudProgress(
+          progressUser.uid,
+          completedRef.current,
+          ratingsRef.current,
+          hero,
+        )
+          .then(() => setCloudStatus('saved'))
+          .catch(() => setCloudStatus('error'));
+      },
+      markOffline = () => setCloudStatus('error');
+    window.addEventListener('online', retryWhenOnline);
+    window.addEventListener('offline', markOffline);
+    return () => {
+      window.removeEventListener('online', retryWhenOnline);
+      window.removeEventListener('offline', markOffline);
+    };
+  }, [cloudReady, hero, progressUser]);
   useEffect(() => {
     if (!storyOpen || !storyStarted) return;
     if (usesDesktopStoryClips()) return;
@@ -772,10 +797,14 @@ export default function Home() {
         );
       } catch {}
     if (progressUser) {
-      setCloudStatus('syncing');
-      void saveCloudProgress(progressUser.uid, next, nextRatings, hero)
-        .then(() => setCloudStatus('saved'))
-        .catch(() => setCloudStatus('error'));
+      if (!navigator.onLine) {
+        setCloudStatus('error');
+      } else {
+        setCloudStatus('syncing');
+        void saveCloudProgress(progressUser.uid, next, nextRatings, hero)
+          .then(() => setCloudStatus('saved'))
+          .catch(() => setCloudStatus('error'));
+      }
     }
     changeMode('won');
     say(`${letter} is for ${word[0]}`);
@@ -808,6 +837,10 @@ export default function Home() {
   }
   async function syncProgressNow() {
     if (!progressUser) return;
+    if (!navigator.onLine) {
+      setCloudStatus('error');
+      return;
+    }
     setCloudStatus('syncing');
     try {
       await saveCloudProgress(
@@ -1160,14 +1193,23 @@ export default function Home() {
                 </span>
                 <span className="hud-score">✦ {stars} / 3</span>
                 {progressUser && (
-                  <span className={`cloud-save-state ${cloudStatus}`}>
+                  <button
+                    type="button"
+                    className={`cloud-save-state ${cloudStatus}`}
+                    onClick={() => void syncProgressNow()}
+                    aria-label={
+                      cloudStatus === 'error'
+                        ? 'Chưa đồng bộ, chạm để thử lưu lại'
+                        : 'Trạng thái lưu tiến độ'
+                    }
+                  >
                     <Cloud size={14} />
                     {cloudStatus === 'syncing'
                       ? 'Đang lưu'
                       : cloudStatus === 'error'
-                        ? 'Lỗi lưu'
+                        ? 'Thử lưu lại'
                         : 'Đã lưu'}
-                  </span>
+                  </button>
                 )}
                 {mode === 'playing' && (
                   <button

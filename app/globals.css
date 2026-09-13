@@ -232,6 +232,14 @@ a {
   align-items: center;
   gap: 4px;
   font-size: 9px;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.game-hud > button.cloud-save-state {
+  padding: 8px 9px;
+}
+.cloud-save-state.syncing svg {
+  animation: cloud-saving 1s ease-in-out infinite alternate;
 }
 .cloud-save-state.saved {
   color: #385729;
@@ -240,6 +248,12 @@ a {
 .cloud-save-state.error {
   color: #8a2c20;
   background: #ffe0d7 !important;
+}
+@keyframes cloud-saving {
+  to {
+    opacity: 0.42;
+    transform: translateY(-2px);
+  }
 }
 .game-layout {
   max-width: 1220px;
