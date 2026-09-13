@@ -32,7 +32,7 @@ import {
   voiceSpeaking,
   voiceLabel,
 } from './recorded-speech';
-import { VOCABULARY } from './lesson-data';
+import { VOCABULARY, type Noun } from './lesson-data';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Play,
@@ -155,6 +155,7 @@ export default function Home() {
     [wordbookOpen, setWordbookOpen] = useState(false),
     [wordbookLevel, setWordbookLevel] = useState(0),
     [notice, setNotice] = useState(''),
+    [wordReward, setWordReward] = useState<Noun | null>(null),
     [quizHint, setQuizHint] = useState(''),
     [quizResult, setQuizResult] = useState<'idle' | 'correct' | 'wrong'>(
       'idle',
@@ -186,6 +187,7 @@ export default function Home() {
   const ratingsRef = useRef<Record<string, number>>({});
   const voiceName = voiceLabel(level);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wordRewardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const letter = String.fromCharCode(65 + level),
     word = WORDS[level],
     world = WORLDS[level],
@@ -347,9 +349,17 @@ export default function Home() {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(''), 3200);
   }, []);
+  const showWordReward = useCallback((noun: Noun) => {
+    setWordReward(noun);
+    if (wordRewardTimer.current) clearTimeout(wordRewardTimer.current);
+    wordRewardTimer.current = setTimeout(() => setWordReward(null), 3600);
+  }, []);
   const changeMode = useCallback((m: Mode) => {
     game.current.mode = m;
-    if (m !== 'playing') stopVoice();
+    if (m !== 'playing') {
+      stopVoice();
+      setWordReward(null);
+    }
     setMode(m);
     input.current = { left: false, right: false, jump: false, earth: false };
   }, []);
@@ -539,7 +549,8 @@ export default function Home() {
             tone(680);
           } else if (e.type === 'encounter' || (e.type === 'stomp' && e.noun)) {
             if (e.noun) {
-              flash(`${e.noun[0]} · ${e.noun[1]}`);
+              if (e.type === 'stomp') showWordReward(e.noun);
+              else flash(`${e.noun[0]} · ${e.noun[1]}`);
               say(e.noun[0]);
             }
             if (e.type === 'stomp') {
@@ -601,8 +612,9 @@ export default function Home() {
       active = false;
       cancelAnimationFrame(frame);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      if (wordRewardTimer.current) clearTimeout(wordRewardTimer.current);
     };
-  }, [flash, haptic, say, tone]);
+  }, [flash, haptic, say, showWordReward, tone]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('button,input,[role="dialog"]'))
@@ -1157,6 +1169,28 @@ export default function Home() {
             )}
             {notice && mode === 'playing' && (
               <output className="pickup-notice">{notice}</output>
+            )}
+            {wordReward && mode === 'playing' && (
+              <button
+                type="button"
+                className="word-reward"
+                onClick={() => say(wordReward[0])}
+                aria-label={`Nghe từ ${wordReward[0]}`}
+              >
+                <Image
+                  unoptimized
+                  src={nounArtPath(wordReward[0])}
+                  alt=""
+                  width={42}
+                  height={42}
+                />
+                <span>
+                  <small>TỪ VỰNG ĐÃ GIẢI CỨU</small>
+                  <b>{wordReward[0]}</b>
+                  <em>{wordReward[1]}</em>
+                </span>
+                <Volume2 size={17} aria-hidden="true" />
+              </button>
             )}
             {mode === 'ready' && (
               <div className="start-screen">
