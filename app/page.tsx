@@ -942,19 +942,28 @@ export default function Home() {
       if (key !== 'jump' && key !== 'earth') input.current[key] = false;
     },
   });
+  const totalRatingStars = completed.reduce(
+    (total, completedLevel) =>
+      total + Math.max(1, Math.min(3, ratings[String(completedLevel)] ?? 0)),
+    0,
+  );
   const alphabet = (
     <div className="alphabet">
       {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l, i) => {
         const unlocked = completed.includes(i) || i === completed.length,
-          isNext = completed.length < 26 && i === completed.length;
+          isNext = completed.length < 26 && i === completed.length,
+          isCompleted = completed.includes(i),
+          levelRating = isCompleted
+            ? Math.max(1, Math.min(3, ratings[String(i)] ?? 0))
+            : 0;
         return (
           <button
             key={l}
             onClick={() => chooseLevel(i)}
             disabled={!unlocked}
-            aria-label={`Màn ${l}${completed.includes(i) ? ', đã hoàn thành' : unlocked ? ', màn tiếp theo' : ', chưa mở khóa'}`}
+            aria-label={`Màn ${l}${isCompleted ? `, đã hoàn thành, ${levelRating} trên 3 sao` : unlocked ? ', màn tiếp theo' : ', chưa mở khóa'}`}
             aria-current={i === level ? 'step' : undefined}
-            className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed ' : ''}${isNext ? 'next-level ' : ''}${!unlocked ? 'locked' : ''}`}
+            className={`${i === level ? 'selected ' : ''}${isCompleted ? 'completed ' : ''}${isNext ? 'next-level ' : ''}${!unlocked ? 'locked' : ''}`}
           >
             <span className="letter-label">{l}</span>
             {!unlocked && (
@@ -962,7 +971,16 @@ export default function Home() {
                 <Lock size={11} />
               </span>
             )}
-            {completed.includes(i) && <span className="done-dot" />}
+            {isCompleted && <span className="done-dot" />}
+            {isCompleted && (
+              <span className="level-stars" aria-hidden="true">
+                {[0, 1, 2].map((star) => (
+                  <i key={star} className={star < levelRating ? 'earned' : ''}>
+                    ★
+                  </i>
+                ))}
+              </span>
+            )}
             {isNext && <span className="next-badge">TIẾP THEO</span>}
           </button>
         );
@@ -1937,6 +1955,18 @@ export default function Home() {
             <p id="map-description" className="map-description">
               {completed.length}/26 chữ đã học. Hoàn thành lần lượt từ A đến Z.
             </p>
+            <div
+              className="map-achievement"
+              aria-label={`${totalRatingStars} trên 78 sao`}
+            >
+              <span>
+                <Sparkles size={17} /> Tổng sao
+              </span>
+              <b>{totalRatingStars} / 78</b>
+              <div aria-hidden="true">
+                <i style={{ width: `${(totalRatingStars / 78) * 100}%` }} />
+              </div>
+            </div>
             {alphabet}
             <p className="map-legend">
               <span className="world-dot" /> Hoàn thành theo thứ tự A–Z · Chữ đã
