@@ -171,6 +171,7 @@ export default function Home() {
     [earthReady, setEarthReady] = useState(false),
     [hero, setHero] = useState<CharacterId>('mon'),
     [storyOpen, setStoryOpen] = useState(true),
+    [storyReady, setStoryReady] = useState(false),
     [storyStarted, setStoryStarted] = useState(false),
     [storyScene, setStoryScene] = useState(0),
     [endingOpen, setEndingOpen] = useState(false),
@@ -220,6 +221,17 @@ export default function Home() {
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
+  const toggleMuted = useCallback(() => {
+    const next = !mutedRef.current;
+    mutedRef.current = next;
+    setMuted(next);
+    if (storyAudio.current) storyAudio.current.muted = next;
+    if (endingAudio.current) endingAudio.current.muted = next;
+    if (next) stopVoice();
+    try {
+      localStorage.setItem('mon-alphabet-muted', String(next));
+    } catch {}
+  }, []);
   const haptic = useCallback((pattern: number | number[]) => {
     if ('vibrate' in navigator) navigator.vibrate(pattern);
   }, []);
@@ -268,6 +280,16 @@ export default function Home() {
     storyAudio.current?.pause();
     setStoryOpen(false);
     setStoryStarted(false);
+    try {
+      localStorage.setItem('mon-alphabet-story-seen', 'true');
+    } catch {}
+  }, []);
+  const replayStory = useCallback(() => {
+    storyAudio.current?.pause();
+    storySceneRef.current = 0;
+    setStoryScene(0);
+    setStoryStarted(false);
+    setStoryOpen(true);
   }, []);
   const playDesktopStoryClip = useCallback((scene: number) => {
     const sound = storyAudio.current;
@@ -414,6 +436,7 @@ export default function Home() {
       return;
     const id = requestAnimationFrame(() => {
       setStoryOpen(false);
+      setStoryReady(true);
       setEndingScene(0);
       setEndingStarted(false);
       setEndingOpen(true);
@@ -541,7 +564,16 @@ export default function Home() {
           completedRef.current = savedProgress;
           setCompleted(savedProgress);
           if (game.current.mode === 'ready') resumeLatestLevel(savedProgress);
+          if (
+            savedProgress.length > 0 ||
+            localStorage.getItem('mon-alphabet-story-seen') === 'true'
+          )
+            setStoryOpen(false);
         }
+        const savedMuted =
+          localStorage.getItem('mon-alphabet-muted') === 'true';
+        mutedRef.current = savedMuted;
+        setMuted(savedMuted);
         const savedRatings = normalizeRatings(
           JSON.parse(localStorage.getItem('mon-alphabet-ratings') || '{}'),
         );
@@ -553,6 +585,7 @@ export default function Home() {
         ratingsRef.current = savedRatings;
         setRatings(savedRatings);
       } catch {}
+      setStoryReady(true);
     });
     return () => cancelAnimationFrame(id);
   }, [resumeLatestLevel]);
@@ -998,13 +1031,7 @@ export default function Home() {
             className="icon-button"
             aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
             aria-pressed={!muted}
-            onClick={() => {
-              mutedRef.current = !muted;
-              setMuted(!muted);
-              if (storyAudio.current) storyAudio.current.muted = !muted;
-              if (endingAudio.current) endingAudio.current.muted = !muted;
-              if (!muted) stopVoice();
-            }}
+            onClick={toggleMuted}
           >
             {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
@@ -1087,7 +1114,7 @@ export default function Home() {
                 default
               />
             </audio>
-            {storyOpen && (
+            {storyReady && storyOpen && (
               <div className="story-screen" aria-label="Câu chuyện mở đầu">
                 <Image
                   key={STORY_SCENES[storyScene].image}
@@ -1237,13 +1264,7 @@ export default function Home() {
                   type="button"
                   aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
                   aria-pressed={!muted}
-                  onClick={() => {
-                    mutedRef.current = !muted;
-                    setMuted(!muted);
-                    if (storyAudio.current) storyAudio.current.muted = !muted;
-                    if (endingAudio.current) endingAudio.current.muted = !muted;
-                    if (!muted) stopVoice();
-                  }}
+                  onClick={toggleMuted}
                 >
                   {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
                 </button>
@@ -1354,6 +1375,13 @@ export default function Home() {
                           ? 'Chọn cách đăng nhập'
                           : 'Tiếp tục chọn nhân vật'}
                         <ChevronRight size={20} />
+                      </button>
+                      <button
+                        type="button"
+                        className="text-button story-replay-button"
+                        onClick={replayStory}
+                      >
+                        <BookOpen size={15} /> Xem lại câu chuyện mở đầu
                       </button>
                     </>
                   ) : (
