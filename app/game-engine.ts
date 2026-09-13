@@ -178,6 +178,8 @@ export type Game = {
   checkpointY: number;
   checkpointTarget: number;
   checkpointReached: boolean;
+  checkpointPlatformIndex: number;
+  checkpointOffset: number;
   jumpBuffer: number;
   coyote: number;
   doubleJumpUnlocked: boolean;
@@ -740,6 +742,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     checkpointY: 496,
     checkpointTarget: worldWidth * 0.5,
     checkpointReached: false,
+    checkpointPlatformIndex: -1,
+    checkpointOffset: 0,
     jumpBuffer: 0,
     coyote: 0,
     doubleJumpUnlocked: false,
@@ -928,8 +932,20 @@ export function hurt(g: Game, fall = false) {
   g.player.invincible = 1.7;
   burst(g, g.player.x + 21, g.player.y + 25, '#ed8a76');
   if (fall) {
-    g.player.x = g.checkpoint;
-    g.player.y = g.checkpointY;
+    const checkpointPlatform = g.platforms[g.checkpointPlatformIndex];
+    if (checkpointPlatform && !checkpointPlatform.resetTimer) {
+      g.player.x = Math.max(
+        checkpointPlatform.x + 5,
+        Math.min(
+          checkpointPlatform.x + checkpointPlatform.w - g.player.w - 5,
+          checkpointPlatform.x + g.checkpointOffset,
+        ),
+      );
+      g.player.y = checkpointPlatform.y - g.player.h;
+    } else {
+      g.player.x = g.checkpoint;
+      g.player.y = g.checkpointY;
+    }
     g.player.vx = 0;
     g.player.vy = 0;
     g.doubleJumpReady = g.doubleJumpUnlocked;
@@ -1106,11 +1122,27 @@ export function updateGame(
         p.x >= g.checkpointTarget &&
         p.x < g.worldWidth - 600
       ) {
-        g.checkpoint = p.x;
-        g.checkpointY = p.y;
+        const safePlatform = ['fall', 'spring'].includes(plat.motion)
+          ? ([...g.platforms]
+              .filter((candidate) => candidate.ground && candidate.x <= p.x)
+              .sort((a, b) => b.x - a.x)[0] ?? plat)
+          : plat;
+        g.checkpoint = Math.max(
+          safePlatform.x + 5,
+          Math.min(p.x, safePlatform.x + safePlatform.w - p.w - 5),
+        );
+        g.checkpointY = safePlatform.y - p.h;
         g.checkpointReached = true;
+        g.checkpointPlatformIndex = g.platforms.indexOf(safePlatform);
+        g.checkpointOffset = g.checkpoint - safePlatform.x;
         g.recentFalls = 0;
-        wendySay(g, 'Đã lưu điểm này! Rơi cũng không phải đi lại từ đầu.', 2.7);
+        if (g.hp < 3) g.hp++;
+        burst(g, p.x + p.w / 2, plat.y - 20, '#d8ef72', 18);
+        wendySay(
+          g,
+          'Đã lưu điểm và hồi một tim! Rơi cũng không phải đi lại từ đầu.',
+          2.9,
+        );
       }
     }
   }
@@ -1809,10 +1841,25 @@ export function drawGame(
   }
   // A visible flag shows the latest safe respawn point.
   if (g.checkpoint > 200) {
-    const x = g.checkpoint - cam,
-      flagBottom = g.checkpointY + g.player.h;
-    rect(x, flagBottom - 34, 3, 34, '#647442');
-    rect(x + 3, flagBottom - 34, 17, 12, '#d5ef75');
+    const checkpointPlatform = g.platforms[g.checkpointPlatformIndex],
+      x =
+        (checkpointPlatform
+          ? checkpointPlatform.x + g.checkpointOffset
+          : g.checkpoint) - cam,
+      flagBottom = checkpointPlatform?.y ?? g.checkpointY + g.player.h,
+      pulse = 0.6 + Math.sin(t * 4) * 0.2;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#dff477';
+    ctx.beginPath();
+    ctx.arc(x + 2, flagBottom - 35, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    rect(x, flagBottom - 38, 3, 38, '#647442');
+    rect(x + 3, flagBottom - 38, 20, 13, '#d5ef75');
+    text('✓', x + 12, flagBottom - 28, 11, '#315236', 'Arial');
+    text('ĐÃ LƯU', x + 11, flagBottom - 47, 8, '#fff7c7', 'Arial');
+    ctx.restore();
   }
   for (const food of g.foods) {
     if (food.eaten || food.x - cam < -60 || food.x - cam > WIDTH + 60) continue;
