@@ -746,7 +746,12 @@ export default function Home() {
             aria-current={i === level ? 'step' : undefined}
             className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed ' : ''}${!unlocked ? 'locked' : ''}`}
           >
-            {unlocked ? l : <Lock size={12} aria-hidden="true" />}
+            <span className="letter-label">{l}</span>
+            {!unlocked && (
+              <span className="lock-badge" aria-hidden="true">
+                <Lock size={11} />
+              </span>
+            )}
             {completed.includes(i) && <span className="done-dot" />}
           </button>
         );
@@ -1051,10 +1056,8 @@ export default function Home() {
                   {onboardingStep === 'account' ? (
                     <>
                       <span className="step-number">BƯỚC 1 / 2</span>
-                      <span className="game-kicker">CHỌN CÁCH CHƠI</span>
-                      <h2>
-                        ĐĂNG NHẬP <em>HOẶC CHƠI KHÁCH</em>
-                      </h2>
+                      <span className="game-kicker">CHỌN CÁCH ĐĂNG NHẬP</span>
+                      <h2>ĐĂNG NHẬP</h2>
                       <div className="start-account-options">
                         {cloudProgressEnabled && (
                           <button
@@ -1082,7 +1085,7 @@ export default function Home() {
                                 {progressUser
                                   ? (progressUser.displayName ??
                                     progressUser.email)
-                                  : 'Đăng nhập bằng Google'}
+                                  : 'Đăng nhập bằng tài khoản Google'}
                               </b>
                               <small>
                                 {progressUser
@@ -1103,7 +1106,7 @@ export default function Home() {
                         >
                           {guestMode ? <Check size={20} /> : <Play size={20} />}
                           <span>
-                            <b>Chơi với tư cách khách</b>
+                            <b>Đăng nhập với tư cách khách</b>
                             <small>Không lưu kết quả sau khi thoát</small>
                           </span>
                         </button>
@@ -1114,7 +1117,7 @@ export default function Home() {
                         onClick={() => setOnboardingStep('character')}
                       >
                         {!progressUser && !guestMode
-                          ? 'Chọn Google hoặc chơi khách'
+                          ? 'Chọn cách đăng nhập'
                           : 'Tiếp tục chọn nhân vật'}
                         <ChevronRight size={20} />
                       </button>
@@ -1617,7 +1620,7 @@ export default function Home() {
               Chọn chuyến phiêu lưu
             </h2>
             <p id="map-description" className="map-description">
-              {completed.length}/26 chữ đã học. Chọn bất kỳ chữ nào để khám phá!
+              {completed.length}/26 chữ đã học. Hoàn thành lần lượt từ A đến Z.
             </p>
             {alphabet}
             <p className="map-legend">

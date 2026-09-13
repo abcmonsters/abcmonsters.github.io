@@ -310,11 +310,11 @@ a {
   background: #506737;
 }
 .alphabet button.locked {
-  color: #718276;
+  color: #b9c9a8;
   background: #071b15b8;
-  border-color: #ffffff0a;
+  border-color: #ffffff1c;
   box-shadow: none;
-  opacity: 0.58;
+  opacity: 0.82;
 }
 .alphabet button.locked:hover {
   background: #071b15b8;
@@ -1525,6 +1525,24 @@ footer span {
 }
 .alphabet button {
   position: relative;
+}
+.letter-label {
+  position: relative;
+  z-index: 1;
+}
+.lock-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: #233728;
+  background: #d5ef75;
+  border: 1px solid #efffb1;
+  border-radius: 6px;
+  box-shadow: 0 2px 0 #657f3c;
 }
 .done-dot {
   position: absolute;
