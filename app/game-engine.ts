@@ -172,6 +172,7 @@ export type Game = {
   idleTime: number;
   lastProgressX: number;
   recentFalls: number;
+  wendyLastTarget: string;
   particles: Particle[];
   checkpoint: number;
   checkpointY: number;
@@ -733,6 +734,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     idleTime: 0,
     lastProgressX: 60,
     recentFalls: 0,
+    wendyLastTarget: '',
     particles: [],
     checkpoint: 60,
     checkpointY: 496,
@@ -759,6 +761,8 @@ function wendyGuide(g: Game, message: string, duration = 2.8) {
 }
 
 function wendyObjective(g: Game) {
+  const missed = wendyMissedObjective(g);
+  if (missed) return missed;
   if (g.player.x > g.worldWidth - 720 && g.boss.hp > 0)
     return {
       x: g.boss.x + g.boss.w / 2,
@@ -794,6 +798,34 @@ function wendyObjective(g: Game) {
     y: g.boss.y,
     message: `Đến trùm chữ ${String.fromCharCode(65 + g.level)} thôi!`,
   };
+}
+
+function wendyMissedObjective(g: Game) {
+  const missedPickup = g.pickups
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => !item.got && item.x < g.player.x - 260)
+    .sort((a, b) => b.x - a.x)[0];
+  if (missedPickup)
+    return {
+      key: `letter-${missedPickup.index}`,
+      x: missedPickup.x,
+      y: missedPickup.y,
+      label: 'CHỮ CÁI',
+      message: 'Khoan! Cậu vừa bỏ sót một chữ cái ở phía sau!',
+    };
+  const missedEnemy = g.enemies
+    .map((enemy, index) => ({ enemy, index }))
+    .filter(({ enemy }) => !enemy.dead && enemy.x < g.player.x - 320)
+    .sort((a, b) => b.enemy.x - a.enemy.x)[0];
+  if (missedEnemy)
+    return {
+      key: `enemy-${missedEnemy.index}`,
+      x: missedEnemy.enemy.x + missedEnemy.enemy.w / 2,
+      y: missedEnemy.enemy.y,
+      label: missedEnemy.enemy.noun[0].toUpperCase(),
+      message: `${missedEnemy.enemy.noun[0]} vẫn còn ở phía sau—quay lại nào!`,
+    };
+  return null;
 }
 
 export function earthAbilityReady(g: Game) {
@@ -939,6 +971,17 @@ export function updateGame(
         : objective.message,
     );
     g.idleTime = 0;
+  }
+  const missedObjective = wendyMissedObjective(g);
+  if (
+    missedObjective &&
+    missedObjective.key !== g.wendyLastTarget &&
+    p.grounded &&
+    g.time >= g.wendyNextHint &&
+    g.time >= g.wendyMessageUntil
+  ) {
+    g.wendyLastTarget = missedObjective.key;
+    wendyGuide(g, missedObjective.message, 3);
   }
   g.shake = Math.max(0, g.shake - dt);
   g.earthCooldown = Math.max(0, g.earthCooldown - dt);
@@ -2069,6 +2112,40 @@ export function drawGame(
         night ? '#fff1c1' : '#694831',
         'Arial',
       );
+    }
+    const missedObjective = wendyMissedObjective(g);
+    if (missedObjective) {
+      const targetScreenX = missedObjective.x - cam;
+      if (targetScreenX < -20 || targetScreenX > WIDTH + 20) {
+        const pointsLeft = targetScreenX < 0,
+          markerX = pointsLeft ? 13 : WIDTH - 13,
+          markerY = 168;
+        ctx.save();
+        ctx.fillStyle = '#173126e8';
+        ctx.strokeStyle = '#f4cf5f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(pointsLeft ? 3 : WIDTH - 83, markerY - 18, 80, 36, 10);
+        ctx.fill();
+        ctx.stroke();
+        text(
+          pointsLeft ? '‹' : '›',
+          markerX,
+          markerY + 7,
+          25,
+          '#fff2a6',
+          'Arial',
+        );
+        text(
+          missedObjective.label,
+          pointsLeft ? 46 : WIDTH - 46,
+          markerY + 4,
+          9,
+          '#fff7d5',
+          'Arial',
+        );
+        ctx.restore();
+      }
     }
   }
   const p = g.player,
