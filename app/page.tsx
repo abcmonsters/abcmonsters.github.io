@@ -14,10 +14,12 @@ import { loadVietnamFoodArt } from './vietnam-scene';
 import CharacterChoicePortrait from './character-choice-portrait';
 import {
   cloudProgressEnabled,
+  loadCloudHero,
   loadCloudProgress,
   loadCloudRatings,
   normalizeProgress,
   normalizeRatings,
+  normalizeHero,
   saveCloudProgress,
   signInWithGoogle,
   signOutProgressUser,
@@ -437,12 +439,16 @@ export default function Home() {
         setGuestMode(false);
         setCloudStatus('syncing');
         try {
-          const [cloud, cloudRatings] = await Promise.all([
+          const [cloud, cloudRatings, cloudHero] = await Promise.all([
               loadCloudProgress(user.uid),
               loadCloudRatings(user.uid),
+              loadCloudHero(user.uid),
             ]),
             merged = normalizeProgress([...completedRef.current, ...cloud]),
-            mergedRatings = { ...ratingsRef.current };
+            mergedRatings = { ...ratingsRef.current },
+            savedHero =
+              cloudHero ??
+              normalizeHero(localStorage.getItem('mon-alphabet-hero'));
           for (const [ratingLevel, cloudRating] of Object.entries(cloudRatings))
             mergedRatings[ratingLevel] = Math.max(
               mergedRatings[ratingLevel] ?? 0,
@@ -450,6 +456,8 @@ export default function Home() {
             );
           completedRef.current = merged;
           ratingsRef.current = mergedRatings;
+          game.current.hero = savedHero;
+          setHero(savedHero);
           setCompleted(merged);
           setRatings(mergedRatings);
           if (game.current.mode === 'ready') resumeLatestLevel(merged);
@@ -458,7 +466,8 @@ export default function Home() {
             'mon-alphabet-ratings',
             JSON.stringify(mergedRatings),
           );
-          await saveCloudProgress(user.uid, merged, mergedRatings);
+          localStorage.setItem('mon-alphabet-hero', savedHero);
+          await saveCloudProgress(user.uid, merged, mergedRatings, savedHero);
           setCloudReady(true);
           setCloudStatus('saved');
         } catch {
@@ -472,12 +481,12 @@ export default function Home() {
     if (!progressUser || !cloudReady) return;
     const timeout = setTimeout(() => {
       setCloudStatus('syncing');
-      void saveCloudProgress(progressUser.uid, completed, ratings)
+      void saveCloudProgress(progressUser.uid, completed, ratings, hero)
         .then(() => setCloudStatus('saved'))
         .catch(() => setCloudStatus('error'));
     }, 350);
     return () => clearTimeout(timeout);
-  }, [cloudReady, completed, progressUser, ratings]);
+  }, [cloudReady, completed, hero, progressUser, ratings]);
   useEffect(() => {
     if (!storyOpen || !storyStarted) return;
     if (usesDesktopStoryClips()) return;
@@ -511,6 +520,11 @@ export default function Home() {
         const savedRatings = normalizeRatings(
           JSON.parse(localStorage.getItem('mon-alphabet-ratings') || '{}'),
         );
+        const savedHero = normalizeHero(
+          localStorage.getItem('mon-alphabet-hero'),
+        );
+        game.current.hero = savedHero;
+        setHero(savedHero);
         ratingsRef.current = savedRatings;
         setRatings(savedRatings);
       } catch {}
@@ -759,7 +773,7 @@ export default function Home() {
       } catch {}
     if (progressUser) {
       setCloudStatus('syncing');
-      void saveCloudProgress(progressUser.uid, next, nextRatings)
+      void saveCloudProgress(progressUser.uid, next, nextRatings, hero)
         .then(() => setCloudStatus('saved'))
         .catch(() => setCloudStatus('error'));
     }
@@ -800,6 +814,7 @@ export default function Home() {
         progressUser.uid,
         completedRef.current,
         ratingsRef.current,
+        hero,
       );
       setCloudStatus('saved');
     } catch {
@@ -1319,6 +1334,13 @@ export default function Home() {
                             onClick={() => {
                               setHero(character.id);
                               game.current.hero = character.id;
+                              if (!guestMode)
+                                try {
+                                  localStorage.setItem(
+                                    'mon-alphabet-hero',
+                                    character.id,
+                                  );
+                                } catch {}
                             }}
                           >
                             {hero === character.id && (

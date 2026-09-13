@@ -52,6 +52,10 @@ export type ProgressUser = Pick<
   User,
   'uid' | 'displayName' | 'email' | 'photoURL'
 >;
+export type SavedHero = 'mon' | 'mori' | 'rio' | 'sol';
+
+export const normalizeHero = (value: unknown): SavedHero =>
+  value === 'mori' || value === 'rio' || value === 'sol' ? value : 'mon';
 
 export function watchProgressUser(
   callback: (user: ProgressUser | null) => void,
@@ -110,6 +114,15 @@ export async function loadCloudProgress(uid: string) {
   return normalizeProgress(snapshot.data()?.completed);
 }
 
+export async function loadCloudHero(uid: string) {
+  if (!database) return null;
+  const snapshot = await getDoc(doc(database, 'players', uid));
+  const hero = snapshot.data()?.hero;
+  return hero === 'mon' || hero === 'mori' || hero === 'rio' || hero === 'sol'
+    ? hero
+    : null;
+}
+
 export async function loadCloudRatings(uid: string) {
   if (!database) return {};
   const snapshot = await getDoc(doc(database, 'players', uid));
@@ -120,6 +133,7 @@ export async function saveCloudProgress(
   uid: string,
   completed: number[],
   ratings?: Record<string, number>,
+  hero?: SavedHero,
 ) {
   if (!database) return;
   const payload: Record<string, unknown> = {
@@ -127,5 +141,6 @@ export async function saveCloudProgress(
     updatedAt: serverTimestamp(),
   };
   if (ratings) payload.ratings = normalizeRatings(ratings);
+  if (hero) payload.hero = normalizeHero(hero);
   await setDoc(doc(database, 'players', uid), payload, { merge: true });
 }
