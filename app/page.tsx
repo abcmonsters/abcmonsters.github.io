@@ -51,6 +51,7 @@ import {
   LogIn,
   LogOut,
   Lock,
+  BookOpen,
 } from 'lucide-react';
 import {
   createGame,
@@ -145,6 +146,8 @@ export default function Home() {
     [muted, setMuted] = useState(false),
     [completed, setCompleted] = useState<number[]>([]),
     [mapOpen, setMapOpen] = useState(false),
+    [wordbookOpen, setWordbookOpen] = useState(false),
+    [wordbookLevel, setWordbookLevel] = useState(0),
     [notice, setNotice] = useState(''),
     [quizHint, setQuizHint] = useState(''),
     [quizResult, setQuizResult] = useState<'idle' | 'correct' | 'wrong'>(
@@ -768,6 +771,14 @@ export default function Home() {
       })}
     </div>
   );
+  const openWordbook = () => {
+    if (mode === 'playing') changeMode('paused');
+    setWordbookLevel(
+      completed.includes(level) ? level : Math.max(0, completed.length - 1),
+    );
+    setMapOpen(false);
+    setWordbookOpen(true);
+  };
   return (
     <main className="app-shell is-fullscreen">
       <header className="topbar">
@@ -801,6 +812,13 @@ export default function Home() {
               {progressUser && <LogOut size={14} />}
             </button>
           )}
+          <button
+            className="icon-button"
+            aria-label="Mở sổ từ vựng"
+            onClick={openWordbook}
+          >
+            <BookOpen size={19} />
+          </button>
           <button
             className="icon-button"
             aria-label="Chọn màn chơi"
@@ -1659,6 +1677,97 @@ export default function Home() {
               <span className="world-dot" /> Hoàn thành theo thứ tự A–Z · Chữ đã
               qua có thể chơi lại
             </p>
+          </dialog>
+        </div>
+      )}
+      {wordbookOpen && (
+        <div
+          className="wordbook-backdrop"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setWordbookOpen(false);
+          }}
+        >
+          <dialog
+            open
+            className="wordbook-dialog"
+            aria-modal="true"
+            aria-labelledby="wordbook-title"
+          >
+            <button
+              type="button"
+              className="map-close"
+              aria-label="Đóng sổ từ vựng"
+              onClick={() => setWordbookOpen(false)}
+            >
+              <X size={22} />
+            </button>
+            <header className="wordbook-heading">
+              <span>SỔ TỪ VỰNG A–Z</span>
+              <h2 id="wordbook-title">Kho báu chữ cái</h2>
+              <p>{completed.length}/26 trang đã mở khóa</p>
+            </header>
+            <div className="wordbook-alphabet" aria-label="Chọn trang chữ cái">
+              {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                .split('')
+                .map((bookLetter, index) => {
+                  const learnedLetter = completed.includes(index);
+                  return (
+                    <button
+                      type="button"
+                      key={bookLetter}
+                      disabled={!learnedLetter}
+                      aria-pressed={wordbookLevel === index}
+                      aria-label={`${bookLetter}${learnedLetter ? ', đã học' : ', chưa học'}`}
+                      onClick={() => setWordbookLevel(index)}
+                    >
+                      {bookLetter}
+                      {!learnedLetter && <Lock size={10} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+            </div>
+            {completed.includes(wordbookLevel) ? (
+              <section className="wordbook-page">
+                <div className="wordbook-letter">
+                  <b>{String.fromCharCode(65 + wordbookLevel)}</b>
+                  <span>{String.fromCharCode(97 + wordbookLevel)}</span>
+                  <button
+                    type="button"
+                    onClick={() => say(String.fromCharCode(65 + wordbookLevel))}
+                  >
+                    <Volume2 size={17} /> Nghe chữ
+                  </button>
+                </div>
+                <div className="wordbook-words">
+                  {VOCABULARY[wordbookLevel].map((noun) => (
+                    <button
+                      type="button"
+                      key={noun[0]}
+                      onClick={() => say(noun[0])}
+                    >
+                      <Image
+                        unoptimized
+                        src={nounArtPath(noun[0])}
+                        alt={noun[1]}
+                        width={72}
+                        height={72}
+                      />
+                      <span>
+                        <b>{noun[0]}</b>
+                        <small>{noun[1]}</small>
+                      </span>
+                      <Volume2 size={17} />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <div className="wordbook-empty">
+                <Lock size={30} />
+                <b>Hoàn thành màn A để mở trang đầu tiên</b>
+              </div>
+            )}
           </dialog>
         </div>
       )}
