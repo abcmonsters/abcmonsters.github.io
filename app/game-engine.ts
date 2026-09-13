@@ -20,6 +20,14 @@ export { WORDS, WORLDS, VOCABULARY } from './lesson-data';
 export const WIDTH = 432,
   HEIGHT = 640,
   WORLD_WIDTH = 4700;
+const BOSS_PATTERN_NAMES = [
+  'NGẮM BẮN',
+  'ZÍC ZẮC',
+  'QUẠT TỪ',
+  'QUÉT NGANG',
+  'BÃO CHỮ',
+  'BÃO CHỮ',
+] as const;
 function difficultyProfile(level: number) {
   const tier = Math.floor(level / 5);
   return {
@@ -1254,7 +1262,8 @@ export function updateGame(
   b.cooldown = Math.max(0, b.cooldown - dt);
   b.phase = g.time * (1.1 + g.difficulty * 0.7);
   b.warning = 0;
-  const engaged = p.x > g.worldWidth - 780 && b.hp > 0;
+  const engaged = p.x > g.worldWidth - 780 && b.hp > 0,
+    bossTier = Math.min(5, Math.floor(g.level / 5));
   if (engaged) {
     b.attackTimer -= dt;
     const bossStage =
@@ -1290,34 +1299,53 @@ export function updateGame(
       const dy = p.y + p.h / 2 - (b.y + 60);
       const length = Math.max(1, Math.hypot(dx, dy));
       const speed = 140 + g.difficulty * 65;
-      g.shots.push({
-        x: b.x + b.w / 2,
-        y: b.y + 60,
-        w: Math.max(40, noun[0].length * 7 + 12),
-        h: 20,
-        vx: (dx / length) * speed,
-        vy: (dy / length) * speed,
-        life: 4,
-        noun,
-      });
-      if (bossStage >= 2) {
-        const spread = bossStage === 3 ? 0.3 : 0.2;
-        for (const turn of [-spread, spread]) {
-          const cos = Math.cos(turn),
-            sin = Math.sin(turn),
-            shotVx = (dx / length) * speed,
-            shotVy = (dy / length) * speed;
-          g.shots.push({
-            x: b.x + b.w / 2,
-            y: b.y + 60,
-            w: Math.max(40, noun[0].length * 7 + 12),
-            h: 20,
-            vx: shotVx * cos - shotVy * sin,
-            vy: shotVx * sin + shotVy * cos,
-            life: 4,
-            noun,
-          });
-        }
+      const spread = bossStage === 3 ? 0.28 : 0.19,
+        alternatingTurn = Math.floor(g.time * 1.7) % 2 ? 0.2 : -0.2,
+        attackAngles =
+          bossTier === 0
+            ? bossStage === 1
+              ? [0]
+              : bossStage === 2
+                ? [-spread, spread]
+                : [-spread, 0, spread]
+            : bossTier === 1
+              ? bossStage === 1
+                ? [alternatingTurn]
+                : [alternatingTurn - spread, alternatingTurn + spread]
+              : bossTier === 2
+                ? bossStage === 1
+                  ? [0]
+                  : bossStage === 2
+                    ? [-spread, 0, spread]
+                    : [-0.36, -0.18, 0, 0.18, 0.36]
+                : bossTier === 3
+                  ? bossStage === 1
+                    ? [alternatingTurn]
+                    : [
+                        -0.3 + alternatingTurn * 0.4,
+                        alternatingTurn * 0.4,
+                        0.3 + alternatingTurn * 0.4,
+                      ]
+                  : bossStage === 1
+                    ? [-0.2, 0.2]
+                    : bossStage === 2
+                      ? [-0.32, 0, 0.32]
+                      : [-0.4, -0.2, 0, 0.2, 0.4];
+      for (const turn of attackAngles) {
+        const cos = Math.cos(turn),
+          sin = Math.sin(turn),
+          shotVx = (dx / length) * speed,
+          shotVy = (dy / length) * speed;
+        g.shots.push({
+          x: b.x + b.w / 2,
+          y: b.y + 60,
+          w: Math.max(40, noun[0].length * 7 + 12),
+          h: 20,
+          vx: shotVx * cos - shotVy * sin,
+          vy: shotVx * sin + shotVy * cos,
+          life: 4,
+          noun,
+        });
       }
       b.dash = 0.48;
       b.attackTimer =
@@ -1917,6 +1945,14 @@ export function drawGame(
       b.y - 44,
       9,
       night ? '#ffe59a' : '#715239',
+      'Arial',
+    );
+    text(
+      BOSS_PATTERN_NAMES[Math.min(5, Math.floor(g.level / 5))],
+      bx + 43,
+      b.y - 55,
+      8,
+      night ? '#bcecff' : '#587c66',
       'Arial',
     );
     for (let i = 0; i < b.maxHp; i++)
