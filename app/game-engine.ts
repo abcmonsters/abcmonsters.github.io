@@ -168,6 +168,10 @@ export type Game = {
   wendyNextHint: number;
   wendyX: number;
   wendyY: number;
+  wendyGuideUntil: number;
+  idleTime: number;
+  lastProgressX: number;
+  recentFalls: number;
   particles: Particle[];
   checkpoint: number;
   checkpointY: number;
@@ -725,6 +729,10 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     wendyNextHint: 8,
     wendyX: 72,
     wendyY: 245,
+    wendyGuideUntil: 0,
+    idleTime: 0,
+    lastProgressX: 60,
+    recentFalls: 0,
     particles: [],
     checkpoint: 60,
     checkpointY: 496,
@@ -742,7 +750,12 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
 function wendySay(g: Game, message: string, duration = 2.5) {
   g.wendyMessage = message;
   g.wendyMessageUntil = g.time + duration;
-  g.wendyNextHint = Math.max(g.wendyNextHint, g.time + duration + 4);
+  g.wendyNextHint = Math.max(g.wendyNextHint, g.time + duration + 7);
+}
+
+function wendyGuide(g: Game, message: string, duration = 2.8) {
+  wendySay(g, message, duration);
+  g.wendyGuideUntil = g.time + duration + 2.2;
 }
 
 function wendyObjective(g: Game) {
@@ -868,9 +881,16 @@ export function hurt(g: Game, fall = false) {
   g.combo = 0;
   g.shake = 0.25;
   g.events.push({ type: 'hurt' });
+  if (fall) g.recentFalls++;
   wendySay(
     g,
-    fall ? 'Ơ kìa, đất ở dưới mà!' : 'Tim của cậu đau, tớ vẫn ổn!',
+    fall
+      ? g.recentFalls >= 3
+        ? 'Đợi bệ tới gần rồi mới nhảy—chậm một nhịp thôi!'
+        : g.recentFalls === 2
+          ? 'Nhìn điểm đáp nhé—đừng vội vàng!'
+          : 'Ơ kìa, đất ở dưới mà!'
+      : 'Tim của cậu đau, tớ vẫn ổn!',
     2.8,
   );
   g.player.invincible = 1.7;
@@ -896,18 +916,30 @@ export function updateGame(
   dt = Math.min(Math.max(dt, 0), 1 / 30);
   g.time += dt;
   g.events = [];
-  if (g.time >= g.wendyNextHint && g.time >= g.wendyMessageUntil) {
-    const objective = wendyObjective(g);
-    wendySay(
-      g,
-      earthAbilityReady(g)
-        ? 'Kỹ năng đã sáng—bấm F tấn công!'
-        : objective.message,
-      2.8,
-    );
-  }
   const p = g.player,
     profile = difficultyProfile(g.level);
+  const makingProgress =
+    Math.abs(p.vx) > 18 || !p.grounded || Math.abs(p.x - g.lastProgressX) > 5;
+  if (makingProgress) {
+    g.idleTime = 0;
+    if (p.x > g.lastProgressX + 160) g.recentFalls = 0;
+    g.lastProgressX = Math.max(g.lastProgressX, p.x);
+  } else if (!input.left && !input.right && !input.jump) g.idleTime += dt;
+  else g.idleTime = 0;
+  if (
+    g.idleTime >= 4.5 &&
+    g.time >= g.wendyNextHint &&
+    g.time >= g.wendyMessageUntil
+  ) {
+    const objective = wendyObjective(g);
+    wendyGuide(
+      g,
+      earthAbilityReady(g)
+        ? 'Kỹ năng đã sáng—bấm nút kỹ năng để tấn công!'
+        : objective.message,
+    );
+    g.idleTime = 0;
+  }
   g.shake = Math.max(0, g.shake - dt);
   g.earthCooldown = Math.max(0, g.earthCooldown - dt);
   if (input.earth) activateEarthSkill(g);
@@ -1033,6 +1065,7 @@ export function updateGame(
         g.checkpoint = p.x;
         g.checkpointY = p.y;
         g.checkpointReached = true;
+        g.recentFalls = 0;
         wendySay(g, 'Đã lưu điểm này! Rơi cũng không phải đi lại từ đầu.', 2.7);
       }
     }
@@ -1476,14 +1509,14 @@ export function updateGame(
     Math.min(g.worldWidth - WIDTH, p.x - WIDTH * 0.34),
   );
   g.camera += (targetCamera - g.camera) * Math.min(1, dt * 9);
-  const guidePhase = g.time % 12 < 5.5,
+  const guidePhase = g.time < g.wendyGuideUntil,
     objective = wendyObjective(g),
     desiredX = guidePhase
       ? Math.max(35, Math.min(WIDTH - 35, objective.x - g.camera))
-      : 72 + Math.sin(g.time * 0.46) * 38,
+      : 92 + Math.sin(g.time * 0.46) * 55,
     desiredY = guidePhase
-      ? Math.max(135, Math.min(465, objective.y - 58))
-      : 215 + Math.sin(g.time * 0.72 + 1.1) * 62,
+      ? Math.max(105, Math.min(330, objective.y - 82))
+      : 170 + Math.sin(g.time * 0.72 + 1.1) * 42,
     follow = 1 - Math.exp(-dt * (guidePhase ? 2.4 : 1.7));
   g.wendyX += (desiredX - g.wendyX) * follow;
   g.wendyY += (desiredY - g.wendyY) * follow;
