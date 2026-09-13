@@ -1340,6 +1340,27 @@ footer span {
 .quiz-screen h2 {
   margin: 2px 0 0;
 }
+.quiz-audio-clue {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  color: #496840;
+  background: #e5f2bd;
+  border: 3px solid #a9c374;
+  border-radius: 50%;
+}
+.quiz-meaning-clue {
+  display: block;
+  max-width: 300px;
+  padding: 12px 20px;
+  color: #385330;
+  background: #f2f7dc;
+  border: 2px solid #b9cf8d;
+  border-radius: 16px;
+  font-size: 24px;
+  line-height: 1.25;
+}
 .quiz-screen > p {
   margin: 9px 0;
 }
@@ -1435,6 +1456,14 @@ footer span {
   font-size: 12px;
   min-height: 38px;
   margin-top: 15px;
+}
+.quiz-screen .quiz-hint.correct {
+  color: #2f783f;
+  font-weight: 800;
+}
+.quiz-screen .quiz-hint.wrong {
+  color: #b24436;
+  font-weight: 800;
 }
 .victory-stars {
   color: #e3b943;

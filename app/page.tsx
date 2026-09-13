@@ -147,6 +147,9 @@ export default function Home() {
     [mapOpen, setMapOpen] = useState(false),
     [notice, setNotice] = useState(''),
     [quizHint, setQuizHint] = useState(''),
+    [quizResult, setQuizResult] = useState<'idle' | 'correct' | 'wrong'>(
+      'idle',
+    ),
     [quizRound, setQuizRound] = useState(0),
     [quizInput, setQuizInput] = useState(''),
     [loaded, setLoaded] = useState(false),
@@ -350,6 +353,7 @@ export default function Home() {
       setEarthReady(false);
       setNotice('');
       setQuizHint('');
+      setQuizResult('idle');
       setQuizRound(0);
       setQuizInput('');
       setMapOpen(false);
@@ -596,6 +600,7 @@ export default function Home() {
     game.current.hero = hero;
     changeMode('playing');
     setQuizHint('');
+    setQuizResult('idle');
     say(`${letter}. ${letter} is for ${word[0]}`);
     tone(520);
     if (document.activeElement instanceof HTMLElement)
@@ -615,12 +620,14 @@ export default function Home() {
   function answer(n: number) {
     if (n !== quizRound) {
       setQuizHint('Chưa đúng rồi. Nghe gợi ý và thử lại nhé!');
+      setQuizResult('wrong');
       tone(180);
       return;
     }
     if (quizRound < 2) {
       setQuizRound(quizRound + 1);
       setQuizHint('Đúng rồi! Thử từ tiếp theo nhé.');
+      setQuizResult('correct');
       say(VOCABULARY[level][quizRound + 1][0]);
       tone(700);
       return;
@@ -628,6 +635,7 @@ export default function Home() {
     setQuizRound(3);
     setQuizInput('');
     setQuizHint('Còn 3 câu gõ từ chính xác để hoàn thành màn!');
+    setQuizResult('idle');
     say(VOCABULARY[level][0][0]);
     tone(700);
   }
@@ -696,7 +704,8 @@ export default function Home() {
     const typingIndex = quizRound - 3,
       expected = VOCABULARY[level][typingIndex][0];
     if (quizInput.trim().toLocaleLowerCase('en') !== expected.toLowerCase()) {
-      setQuizHint('Chưa chính xác. Nghe lại rồi kiểm tra từng chữ nhé!');
+      setQuizHint('Chưa chính xác. Kiểm tra từng chữ rồi thử lại nhé!');
+      setQuizResult('wrong');
       tone(180);
       return;
     }
@@ -704,16 +713,17 @@ export default function Home() {
       const nextRound = quizRound + 1;
       setQuizRound(nextRound);
       setQuizInput('');
+      setQuizResult('correct');
       setQuizHint(
         nextRound === 5
           ? 'Đúng rồi! Còn từ cuối cùng nhé.'
           : 'Đúng rồi! Gõ chính xác thêm một từ nữa nhé.',
       );
-      say(VOCABULARY[level][nextRound - 3][0]);
       tone(700);
       return;
     }
     setQuizHint('Chính xác!');
+    setQuizResult('correct');
     finishQuiz();
   }
   const touch = (key: 'left' | 'right' | 'jump' | 'earth') => ({
@@ -1253,43 +1263,62 @@ export default function Home() {
                   {letter.toLowerCase()}
                 </span>
                 <h2 className="quiz-object">
-                  <Image
-                    unoptimized
-                    src={nounArtPath(
-                      VOCABULARY[level][
-                        quizRound >= 3 ? quizRound - 3 : quizRound
-                      ][0],
-                    )}
-                    alt=""
-                    width={64}
-                    height={64}
-                  />
+                  {quizRound === 3 ? (
+                    <span className="quiz-audio-clue">
+                      <Volume2 size={48} />
+                    </span>
+                  ) : quizRound === 4 ? (
+                    <span className="quiz-meaning-clue">
+                      {VOCABULARY[level][1][1]}
+                    </span>
+                  ) : (
+                    <Image
+                      unoptimized
+                      src={nounArtPath(
+                        VOCABULARY[level][
+                          quizRound >= 3 ? quizRound - 3 : quizRound
+                        ][0],
+                      )}
+                      alt={quizRound === 5 ? 'Hình gợi ý từ vựng' : ''}
+                      width={64}
+                      height={64}
+                    />
+                  )}
                 </h2>
                 <p>
-                  {quizRound >= 3
-                    ? `Hãy gõ tên tiếng Anh của “${VOCABULARY[level][quizRound - 3][1]}”.`
-                    : `Từ nào có nghĩa là “${VOCABULARY[level][quizRound][1]}”?`}
+                  {quizRound === 3
+                    ? 'Nghe Wendy đọc rồi gõ chính xác từ tiếng Anh.'
+                    : quizRound === 4
+                      ? 'Gõ từ tiếng Anh có nghĩa như trên.'
+                      : quizRound === 5
+                        ? 'Nhìn hình và gõ chính xác từ tiếng Anh.'
+                        : `Từ nào có nghĩa là “${VOCABULARY[level][quizRound][1]}”?`}
                 </p>
-                <button
-                  className="listen-button"
-                  onClick={() =>
-                    say(
-                      VOCABULARY[level][
-                        quizRound >= 3 ? quizRound - 3 : quizRound
-                      ][0],
-                    )
-                  }
-                >
-                  <Volume2 size={18} />
-                  Nghe gợi ý
-                </button>
+                {quizRound !== 4 && quizRound !== 5 && (
+                  <button
+                    className="listen-button"
+                    onClick={() =>
+                      say(
+                        VOCABULARY[level][
+                          quizRound >= 3 ? quizRound - 3 : quizRound
+                        ][0],
+                      )
+                    }
+                  >
+                    <Volume2 size={18} />
+                    {quizRound === 3 ? 'Nghe từ' : 'Nghe gợi ý'}
+                  </button>
+                )}
                 {quizRound >= 3 ? (
                   <form className="quiz-typing" onSubmit={submitTypedAnswer}>
                     <label htmlFor="quiz-word">Gõ từ tiếng Anh</label>
                     <input
                       id="quiz-word"
                       value={quizInput}
-                      onChange={(event) => setQuizInput(event.target.value)}
+                      onChange={(event) => {
+                        setQuizInput(event.target.value);
+                        setQuizResult('idle');
+                      }}
                       autoComplete="off"
                       autoCapitalize="none"
                       spellCheck={false}
@@ -1314,7 +1343,10 @@ export default function Home() {
                       ))}
                   </div>
                 )}
-                <output id="quiz-feedback" className="quiz-hint">
+                <output
+                  id="quiz-feedback"
+                  className={`quiz-hint ${quizResult}`}
+                >
                   {quizHint ||
                     (quizRound >= 3
                       ? 'Gõ đúng từng chữ rồi nhấn Kiểm tra nhé.'
