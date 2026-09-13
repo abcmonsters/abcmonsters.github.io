@@ -879,7 +879,8 @@ export default function Home() {
   const alphabet = (
     <div className="alphabet">
       {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l, i) => {
-        const unlocked = completed.includes(i) || i === completed.length;
+        const unlocked = completed.includes(i) || i === completed.length,
+          isNext = completed.length < 26 && i === completed.length;
         return (
           <button
             key={l}
@@ -887,7 +888,7 @@ export default function Home() {
             disabled={!unlocked}
             aria-label={`Màn ${l}${completed.includes(i) ? ', đã hoàn thành' : unlocked ? ', màn tiếp theo' : ', chưa mở khóa'}`}
             aria-current={i === level ? 'step' : undefined}
-            className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed ' : ''}${!unlocked ? 'locked' : ''}`}
+            className={`${i === level ? 'selected ' : ''}${completed.includes(i) ? 'completed ' : ''}${isNext ? 'next-level ' : ''}${!unlocked ? 'locked' : ''}`}
           >
             <span className="letter-label">{l}</span>
             {!unlocked && (
@@ -896,6 +897,7 @@ export default function Home() {
               </span>
             )}
             {completed.includes(i) && <span className="done-dot" />}
+            {isNext && <span className="next-badge">TIẾP THEO</span>}
           </button>
         );
       })}
@@ -1371,6 +1373,14 @@ export default function Home() {
                         ))}
                       </div>
                       <div className="start-level-info">
+                        {progressUser && cloudReady && completed.length > 0 && (
+                          <span className="resume-banner">
+                            <Check size={13} /> Tiến độ đã tải ·{' '}
+                            {completed.length < 26
+                              ? `Tiếp tục từ màn ${letter}`
+                              : 'Đã hoàn thành A–Z'}
+                          </span>
+                        )}
                         <div className="level-pill">
                           {letter} is for {word[0]}
                         </div>
@@ -1388,7 +1398,11 @@ export default function Home() {
                           ? 'Không tải được hình nhân vật'
                           : !loaded
                             ? 'Đang tải nhân vật…'
-                            : 'Bắt đầu phiêu lưu'}
+                            : completed.length === 0
+                              ? 'Bắt đầu phiêu lưu'
+                              : completed.length < 26
+                                ? `Tiếp tục màn ${letter}`
+                                : `Chơi lại màn ${letter}`}
                       </button>
                       <button
                         type="button"
