@@ -1343,7 +1343,7 @@ export default function Home() {
             )}
             {mode !== 'ready' && (
               <div className="game-hud">
-                <span aria-label={`${hp} mạng`}>
+                <span className="hud-hearts" aria-label={`${hp} mạng`}>
                   {'♥'.repeat(Math.max(0, hp))}
                   <span style={{ opacity: 0.25 }}>
                     {'♥'.repeat(3 - Math.max(0, hp))}
@@ -1386,15 +1386,18 @@ export default function Home() {
                     }
                   >
                     <Cloud size={14} />
-                    {cloudStatus === 'syncing'
-                      ? 'Đang lưu'
-                      : cloudStatus === 'error'
-                        ? 'Thử lưu lại'
-                        : 'Đã lưu'}
+                    <span className="cloud-save-label">
+                      {cloudStatus === 'syncing'
+                        ? 'Đang lưu'
+                        : cloudStatus === 'error'
+                          ? 'Thử lưu lại'
+                          : 'Đã lưu'}
+                    </span>
                   </button>
                 )}
                 {mode === 'playing' && (
                   <button
+                    className="hud-pause"
                     aria-label="Tạm dừng"
                     onClick={() => changeMode('paused')}
                   >
@@ -1445,7 +1448,7 @@ export default function Home() {
                 </button>
               </div>
             )}
-            {notice && mode === 'playing' && (
+            {notice && !wordReward && mode === 'playing' && (
               <output className="pickup-notice">{notice}</output>
             )}
             {wordReward && mode === 'playing' && (

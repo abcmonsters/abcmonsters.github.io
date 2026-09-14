@@ -1201,7 +1201,7 @@ footer span {
 .combo-hud {
   position: absolute;
   top: 49px;
-  right: 0;
+  left: 0;
   min-width: 112px;
   padding: 5px 9px 7px;
   color: #fff8c7;
@@ -1262,6 +1262,21 @@ footer span {
   border: 2px solid #ffffff7a;
   padding: 9px;
   border-radius: 9px;
+}
+.cloud-save-state svg {
+  flex: 0 0 auto;
+}
+.cloud-save-state.saved svg {
+  color: #4d7b3f;
+}
+.cloud-save-state.syncing svg {
+  animation: cloud-saving 0.9s ease-in-out infinite alternate;
+}
+@keyframes cloud-saving {
+  to {
+    opacity: 0.35;
+    transform: translateY(-2px);
+  }
 }
 .star-goals {
   position: absolute;
@@ -2504,6 +2519,10 @@ footer span {
   }
   .game-hud {
     inset: 14px 13px auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    justify-content: stretch;
+    gap: 6px;
   }
   .primary-button {
     font-size: 14px;
@@ -2514,6 +2533,40 @@ footer span {
   }
   .game-hud > span {
     padding: 7px 9px;
+  }
+  .game-hud .hud-score {
+    justify-self: end;
+    margin-left: 0;
+  }
+  .game-hud > button.cloud-save-state {
+    width: 36px;
+    min-width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .cloud-save-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .game-hud .hud-pause {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+  }
+  .combo-hud {
+    top: 44px;
+    left: 0;
+    right: auto;
+  }
+  .star-goals {
+    top: 44px;
+    right: 0;
   }
   .map-dialog {
     inset: auto !important;
