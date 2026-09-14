@@ -285,9 +285,6 @@ export default function Home() {
     storyAudio.current?.pause();
     setStoryOpen(false);
     setStoryStarted(false);
-    try {
-      localStorage.setItem('mon-alphabet-story-seen', 'true');
-    } catch {}
   }, []);
   const replayStory = useCallback(() => {
     storyAudio.current?.pause();
@@ -574,11 +571,6 @@ export default function Home() {
           completedRef.current = savedProgress;
           setCompleted(savedProgress);
           if (game.current.mode === 'ready') resumeLatestLevel(savedProgress);
-          if (
-            savedProgress.length > 0 ||
-            localStorage.getItem('mon-alphabet-story-seen') === 'true'
-          )
-            setStoryOpen(false);
         }
         const savedMuted =
           localStorage.getItem('mon-alphabet-muted') === 'true';
