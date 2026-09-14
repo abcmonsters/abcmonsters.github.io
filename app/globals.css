@@ -1198,6 +1198,33 @@ footer span {
   color: #29452c;
   background: #f1d367;
 }
+.combo-hud {
+  position: absolute;
+  top: 49px;
+  right: 0;
+  padding: 5px 9px;
+  color: #fff8c7;
+  background: #466c3ee8;
+  border: 2px solid #d9ef8d;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  box-shadow: 0 3px 0 #29482d;
+  animation: combo-pop 0.22s ease-out both;
+}
+.combo-hud b {
+  color: #f6d762;
+  font-size: 13px;
+}
+@keyframes combo-pop {
+  from {
+    transform: scale(0.72);
+  }
+  to {
+    transform: scale(1);
+  }
+}
 .game-hud > button {
   pointer-events: auto;
   color: #385237;

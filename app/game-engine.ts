@@ -1199,7 +1199,9 @@ export function updateGame(
       if (e.rockHp <= 0) {
         e.dead = true;
         e.defeatedAt = g.time;
-        g.score += 70;
+        g.combo++;
+        g.comboTime = 3;
+        g.score += 50 * Math.min(g.combo, 5);
         learn(g, e.noun, 'stomp');
         wendySay(g, `${e.noun[0]} bị lửa hạ rồi!`);
         continue;
@@ -1507,16 +1509,15 @@ export function updateGame(
         if (rock.hero === 'mon')
           e.vx += Math.sign(rock.vx || g.player.facing) * 230;
         rock.life = 0;
-        g.score += e.rockHp <= 0 ? 70 : 15;
+        const defeated = e.rockHp <= 0;
+        if (defeated) {
+          g.combo++;
+          g.comboTime = 3;
+        }
+        g.score += defeated ? 50 * Math.min(g.combo, 5) : 15;
         g.shake = 0.1;
-        burst(
-          g,
-          e.x + e.w / 2,
-          e.y + e.h / 2,
-          '#e0b04e',
-          e.rockHp <= 0 ? 18 : 9,
-        );
-        if (e.rockHp <= 0) {
+        burst(g, e.x + e.w / 2, e.y + e.h / 2, '#e0b04e', defeated ? 18 : 9);
+        if (defeated) {
           e.dead = true;
           e.defeatedAt = g.time;
           learn(g, e.noun, 'stomp');

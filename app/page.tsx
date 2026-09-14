@@ -147,6 +147,7 @@ export default function Home() {
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
     [stars, setStars] = useState(0),
+    [combo, setCombo] = useState(0),
     [damageTaken, setDamageTaken] = useState(0),
     [starGoalsOpen, setStarGoalsOpen] = useState(false),
     [resultStars, setResultStars] = useState(0),
@@ -405,6 +406,7 @@ export default function Home() {
     setMode('ready');
     setHp(3);
     setStars(0);
+    setCombo(0);
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
@@ -699,6 +701,7 @@ export default function Home() {
         }
         setHp(g.hp);
         setStars(g.stars);
+        setCombo(g.comboTime > 0 ? g.combo : 0);
         setDamageTaken(g.damageTaken);
         setEarthReady(earthAbilityReady(g));
         setScore(g.score);
@@ -781,6 +784,7 @@ export default function Home() {
   function replay() {
     game.current = createGame(level, hero);
     setStars(0);
+    setCombo(0);
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
@@ -1260,6 +1264,11 @@ export default function Home() {
                 >
                   ✦ {stars} / 3
                 </button>
+                {combo > 1 && (
+                  <output className="combo-hud" aria-label={`Combo ${combo}`}>
+                    COMBO <b>×{Math.min(combo, 5)}</b>
+                  </output>
+                )}
                 {progressUser && (
                   <button
                     type="button"
