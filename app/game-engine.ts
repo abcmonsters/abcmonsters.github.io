@@ -2,9 +2,13 @@ import {
   enemyHabitat,
   enemyMotion,
   enemyPace,
+  enemySkill,
+  enemySkillHint,
+  enemySkillLabel,
   airborne,
   type EnemyHabitat,
   type EnemyMotion,
+  type EnemySkill,
 } from './enemy-traits';
 import { drawNounEnemy, nounFootInset } from './noun-art';
 import { drawCloudArt, drawSceneArt } from './scene-art';
@@ -67,11 +71,13 @@ export type GameEvent = {
     | 'jump'
     | 'heal'
     | 'earth'
-    | 'earthHit';
+    | 'earthHit'
+    | 'enemySkill';
   food?: string;
   index?: number;
   noun?: Noun;
   hero?: CharacterId;
+  skillLabel?: string;
 };
 export type Enemy = Rect & {
   rockHp: number;
@@ -101,6 +107,10 @@ export type Enemy = Rect & {
   seen: boolean;
   defeatedAt: number;
   phase: number;
+  skill: EnemySkill;
+  skillTimer: number;
+  skillActive: number;
+  skillSeen: boolean;
 };
 export type Particle = {
   x: number;
@@ -153,7 +163,13 @@ export type Game = {
     direction: number;
     announcedStage: number;
   };
-  shots: (Rect & { vx: number; vy: number; life: number; noun: Noun })[];
+  shots: (Rect & {
+    vx: number;
+    vy: number;
+    life: number;
+    noun: Noun;
+    effect?: 'freeze' | 'gust' | 'snare';
+  })[];
   earthShots: (Rect & {
     vx: number;
     vy: number;
@@ -184,6 +200,8 @@ export type Game = {
   coyote: number;
   doubleJumpUnlocked: boolean;
   doubleJumpReady: boolean;
+  slipperyUntil: number;
+  slowedUntil: number;
   shake: number;
   events: GameEvent[];
 };
@@ -489,6 +507,10 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       seen: false,
       defeatedAt: 0,
       phase: i * 2.1 + level * 0.3,
+      skill: enemySkill(noun[0]),
+      skillTimer: 4.8 + (i % 3) * 1.1,
+      skillActive: 0,
+      skillSeen: false,
     };
   });
   if (level === 0) {
@@ -748,6 +770,8 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     coyote: 0,
     doubleJumpUnlocked: false,
     doubleJumpReady: false,
+    slipperyUntil: 0,
+    slowedUntil: 0,
     shake: 0,
     events: [],
   };
@@ -1065,8 +1089,11 @@ export function updateGame(
   if (p.grounded) g.coyote = jumpAssist ? 0.18 : 0.1;
   else g.coyote = Math.max(0, g.coyote - dt);
   const dir = Number(input.right) - Number(input.left),
-    target = dir * 240;
-  p.vx += (target - p.vx) * Math.min(1, dt * (dir ? 15 : 20));
+    slippery = g.slipperyUntil > g.time,
+    slowed = g.slowedUntil > g.time,
+    target = dir * (slowed ? 145 : 240),
+    traction = slippery ? (dir ? 2.4 : 1.15) : dir ? 15 : 20;
+  p.vx += (target - p.vx) * Math.min(1, dt * traction);
   if (Math.abs(p.vx) < 1) p.vx = 0;
   if (dir) p.facing = dir;
   p.stride += Math.abs(p.vx) * dt * 0.065;
@@ -1192,6 +1219,7 @@ export function updateGame(
   );
   for (const e of g.enemies) {
     if (e.dead) continue;
+    e.skillActive = Math.max(0, e.skillActive - dt);
     if (e.burnTickAt > 0 && g.time >= e.burnTickAt) {
       e.burnTickAt = 0;
       e.rockHp = Math.max(0, e.rockHp - 1);
@@ -1250,6 +1278,23 @@ export function updateGame(
     }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = engagedEnemies.has(e);
+    if (e.alert) {
+      e.skillTimer -= dt;
+      if (e.skillTimer <= 0) {
+        e.skillActive = e.skill === 'grow' ? 2.4 : 1.15;
+        e.skillTimer =
+          Math.max(4.2, 7.2 - g.difficulty * 1.5) + (e.phase % 1.1);
+        if (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
+          e.fireTimer = Math.min(e.fireTimer, 0.55);
+        g.events.push({
+          type: 'enemySkill',
+          noun: e.noun,
+          skillLabel: enemySkillLabel(e.skill),
+        });
+        if (!e.skillSeen) wendySay(g, enemySkillHint(e.noun[0], e.skill), 3.2);
+        e.skillSeen = true;
+      }
+    }
     // Ground enemies defend their island; flyers can pursue across gaps.
     const low = airborne(e.behavior)
       ? 20
@@ -1262,7 +1307,11 @@ export function updateGame(
       : e.origin + Math.sin(g.time * e.speed + e.phase) * e.range;
     const direction = Math.sign(targetX - e.x);
     const slowed = e.slowUntil > g.time,
-      pace = profile.pursuitSpeed * enemyPace(e.noun[0]) * (slowed ? 0.42 : 1);
+      pace =
+        profile.pursuitSpeed *
+        enemyPace(e.noun[0]) *
+        (slowed ? 0.42 : 1) *
+        (e.skill === 'charge' && e.skillActive > 0 ? 2.35 : 1);
     if (e.behavior === 'drop') {
       e.vx = 0;
       e.dropClock -= dt;
@@ -1323,7 +1372,9 @@ export function updateGame(
         const amplitude =
           e.behavior === 'hop'
             ? e.alert
-              ? 100
+              ? e.skill === 'leap' && e.skillActive > 0
+                ? 145
+                : 100
               : 56
             : e.behavior === 'walk'
               ? 4
@@ -1359,12 +1410,21 @@ export function updateGame(
           vy: (dy / length) * speed,
           life: 3.2,
           noun: e.noun,
+          effect:
+            e.skillActive > 0 &&
+            (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
+              ? e.skill
+              : undefined,
         });
         e.fireTimer = profile.shotCooldown + (e.phase % 0.45);
       }
     } else e.fireTimer = Math.max(0.8, e.fireTimer);
-    if (overlaps(p, e)) {
-      if (p.vy > 0 && oldBottom < e.y + 19) {
+    const giant = e.skill === 'grow' && e.skillActive > 0,
+      enemyBody: Rect = giant
+        ? { x: e.x - 14, y: e.y - 26, w: e.w + 28, h: e.h + 26 }
+        : e;
+    if (overlaps(p, enemyBody)) {
+      if (p.vy > 0 && oldBottom < enemyBody.y + 19) {
         e.dead = true;
         e.defeatedAt = g.time;
         p.vy = -500;
@@ -1482,6 +1542,9 @@ export function updateGame(
     s.life -= dt;
     if (overlaps(p, s)) {
       s.life = 0;
+      if (s.effect === 'freeze') g.slipperyUntil = g.time + 3.4;
+      if (s.effect === 'snare') g.slowedUntil = g.time + 2.5;
+      if (s.effect === 'gust') p.vx += Math.sign(s.vx) * 260;
       hurt(g);
     }
   }
@@ -1948,6 +2011,10 @@ export function drawGame(
         ? 0
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
     ctx.translate(x + e.w / 2, e.y + e.h + enemyFootOffset);
+    if (e.skill === 'grow' && e.skillActive > 0) {
+      const grow = 1 + Math.min(0.62, (e.skillActive / 0.45) * 0.62);
+      ctx.scale(grow, grow);
+    }
     if (e.dead) {
       ctx.globalAlpha = 1 - age / 0.45;
       ctx.rotate(age * 5);
@@ -2110,9 +2177,23 @@ export function drawGame(
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#fff2cc';
+    ctx.strokeStyle =
+      shot.effect === 'freeze'
+        ? '#d8fbff'
+        : shot.effect === 'gust'
+          ? '#efffd2'
+          : shot.effect === 'snare'
+            ? '#f1d6ff'
+            : '#fff2cc';
     ctx.strokeText(shot.noun[0], x + shot.w / 2, shot.y + 15);
-    ctx.fillStyle = '#9d392d';
+    ctx.fillStyle =
+      shot.effect === 'freeze'
+        ? '#2789b8'
+        : shot.effect === 'gust'
+          ? '#4c843e'
+          : shot.effect === 'snare'
+            ? '#75519a'
+            : '#9d392d';
     ctx.fillText(shot.noun[0], x + shot.w / 2, shot.y + 15);
     ctx.restore();
   }
@@ -2222,6 +2303,10 @@ export function drawGame(
       Math.min(WIDTH - wendySize / 2 - 4, g.wendyX),
     ),
     wendyY = g.wendyY + Math.sin(t * 2.6) * 4;
+  if (g.slipperyUntil > g.time)
+    text('❄ ĐƯỜNG TRƠN', px + 21, p.y - 34, 10, '#d9fbff', 'Arial');
+  else if (g.slowedUntil > g.time)
+    text('TRÓI CHẬM', px + 21, p.y - 34, 10, '#f1d6ff', 'Arial');
   drawWendy(
     ctx,
     wendyX,

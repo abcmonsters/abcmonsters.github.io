@@ -9,6 +9,13 @@ export type EnemyMotion =
   | 'hover'
   | 'guard';
 export type EnemyHabitat = 'land' | 'water' | 'sky' | 'flex';
+export type EnemySkill =
+  | 'grow'
+  | 'freeze'
+  | 'charge'
+  | 'leap'
+  | 'gust'
+  | 'snare';
 const groups: Record<EnemyMotion, string[]> = {
   walk: [
     'Ant',
@@ -103,6 +110,37 @@ export function enemyPace(word: string) {
     : ['Cat', 'Fox', 'Wolf', 'Horse', 'Ant'].includes(word)
       ? 1.15
       : 1;
+}
+export function enemySkill(word: string): EnemySkill {
+  if (['Penguin', 'Ice cream', 'Igloo'].includes(word)) return 'freeze';
+  const motion = enemyMotion(word);
+  if (motion === 'drop' || ['Elephant', 'Dinosaur', 'Whale'].includes(word))
+    return 'grow';
+  if (motion === 'hop') return 'leap';
+  if (motion === 'fly' || motion === 'hover') return 'gust';
+  if (motion === 'swim' || ['Snake', 'Yarn', 'Quilt', 'Zipper'].includes(word))
+    return 'snare';
+  return 'charge';
+}
+export function enemySkillLabel(skill: EnemySkill) {
+  return {
+    grow: 'HÓA KHỔNG LỒ',
+    freeze: 'ĐÓNG BĂNG',
+    charge: 'LAO TỚI',
+    leap: 'NHẢY VỌT',
+    gust: 'GIÓ ĐẨY',
+    snare: 'TRÓI CHẬM',
+  }[skill];
+}
+export function enemySkillHint(word: string, skill: EnemySkill) {
+  return {
+    grow: `${word} sắp hóa khổng lồ—giữ khoảng cách rồi nhảy lên!`,
+    freeze: `${word} làm đường đóng băng—đổi hướng sẽ bị trượt!`,
+    charge: `${word} sắp lao nhanh—hãy nhảy qua đầu!`,
+    leap: `${word} có thể nhảy rất cao—đừng đứng yên!`,
+    gust: `${word} tạo gió đẩy—né chữ đang bay tới!`,
+    snare: `${word} làm cậu chậm lại—né chữ màu tím nhé!`,
+  }[skill];
 }
 export function airborne(motion: EnemyMotion) {
   return motion === 'fly' || motion === 'swim' || motion === 'hover';

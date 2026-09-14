@@ -687,6 +687,11 @@ export default function Home() {
           } else if (e.type === 'earthHit') {
             haptic([24, 18, 32]);
             tone(120);
+          } else if (e.type === 'enemySkill' && e.noun && e.skillLabel) {
+            flash(`${e.noun[0]} · ${e.skillLabel}`);
+            say(e.noun[0]);
+            haptic([10, 16, 10]);
+            tone(360);
           } else if (e.type === 'heal') {
             haptic([14, 24, 14]);
             flash(`${e.food} · Hồi 1 tim ♥`);
