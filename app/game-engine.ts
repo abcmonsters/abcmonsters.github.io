@@ -197,6 +197,7 @@ export type Game = {
   lastProgressX: number;
   recentFalls: number;
   wendyLastTarget: string;
+  lastEnemyTeam: string;
   particles: Particle[];
   checkpoint: number;
   checkpointY: number;
@@ -776,6 +777,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     lastProgressX: 60,
     recentFalls: 0,
     wendyLastTarget: '',
+    lastEnemyTeam: '',
     particles: [],
     checkpoint: 60,
     checkpointY: 496,
@@ -1236,15 +1238,25 @@ export function updateGame(
       wendySay(g, `${food.name} ngon quá—tim đầy lên!`);
     }
   }
-  const engagedEnemies = new Set(
-    g.enemies
+  const engagedTeam = g.enemies
       .filter((enemy) => enemy.activated && !enemy.dead)
       .sort(
         (a, b) =>
           Math.abs(a.x - p.x) - Math.abs(b.x - p.x) || a.origin - b.origin,
       )
       .slice(0, profile.activeLimit),
-  );
+    engagedEnemies = new Set(engagedTeam),
+    enemyTeamKey = engagedTeam
+      .map((enemy) => `${enemy.noun[0]}-${Math.round(enemy.origin)}`)
+      .join('|');
+  if (engagedTeam.length > 1 && enemyTeamKey !== g.lastEnemyTeam) {
+    g.lastEnemyTeam = enemyTeamKey;
+    wendySay(
+      g,
+      `${engagedTeam.map((enemy) => enemy.noun[0]).join(' và ')} đang phối hợp—né lần lượt nhé!`,
+      2.7,
+    );
+  } else if (engagedTeam.length < 2) g.lastEnemyTeam = '';
   for (const e of g.enemies) {
     if (e.dead) continue;
     e.skillActive = Math.max(0, e.skillActive - dt);
@@ -1311,6 +1323,13 @@ export function updateGame(
     }
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = engagedEnemies.has(e);
+    const teamIndex = engagedTeam.indexOf(e),
+      combatTurn =
+        engagedTeam.length <= 1 ||
+        teamIndex < 0 ||
+        Math.floor(g.time / Math.max(1.05, 1.5 - g.difficulty * 0.28)) %
+          engagedTeam.length ===
+          teamIndex;
     if (e.alert) {
       if (e.skillWindup > 0) {
         e.skillWindup = Math.max(0, e.skillWindup - dt);
@@ -1348,7 +1367,7 @@ export function updateGame(
           }
         }
       } else {
-        e.skillTimer -= dt;
+        if (combatTurn) e.skillTimer -= dt;
       }
       if (e.skillTimer <= 0 && e.skillWindup === 0 && e.skillActive === 0) {
         e.skillWindup = Math.max(
@@ -1469,8 +1488,8 @@ export function updateGame(
       Math.abs(p.y - e.y) < 250
     ) {
       e.fireTimer -= dt;
-      e.warning = e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
-      if (e.fireTimer <= 0 && g.shots.length < profile.shotCap) {
+      e.warning = combatTurn && e.fireTimer < 0.65 ? 0.65 - e.fireTimer : 0;
+      if (combatTurn && e.fireTimer <= 0 && g.shots.length < profile.shotCap) {
         const width = Math.max(40, e.noun[0].length * 7 + 12);
         const dx = p.x + p.w / 2 + p.vx * 0.22 - (e.x + e.w / 2);
         const dy = p.y + p.h / 2 - (e.y + e.h / 2);
