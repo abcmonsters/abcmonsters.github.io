@@ -697,7 +697,9 @@ export default function Home() {
             haptic([28, 20, 48]);
             tone(920);
           } else if (e.type === 'enemySkill' && e.noun && e.skillLabel) {
-            flash(`${e.noun[0]} · ${e.skillLabel}`);
+            const skill = enemySkill(e.noun[0]),
+              counter = enemyCounterName(enemySkillCounter(e.noun[0], skill));
+            flash(`${e.noun[0]} · ${e.skillLabel} · Điểm yếu: ${counter}`);
             say(e.noun[0]);
             haptic([10, 16, 10]);
             tone(360);
@@ -1393,6 +1395,15 @@ export default function Home() {
                     <small>TỪ VỰNG ĐÃ GIẢI CỨU</small>
                     <b>{wordReward[0]}</b>
                     <em>{wordReward[1]}</em>
+                    <em className="word-reward-skill">
+                      {enemySkillLabel(wordReward[0])} · Yếu:{' '}
+                      {enemyCounterName(
+                        enemySkillCounter(
+                          wordReward[0],
+                          enemySkill(wordReward[0]),
+                        ),
+                      )}
+                    </em>
                   </span>
                   <Volume2 size={17} aria-hidden="true" />
                 </button>

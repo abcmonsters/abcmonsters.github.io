@@ -1537,6 +1537,13 @@ footer span {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.word-reward .word-reward-skill {
+  margin-top: 3px;
+  color: #f4d46f;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
 @keyframes word-reward-in {
   from {
     opacity: 0;
