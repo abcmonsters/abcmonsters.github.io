@@ -2198,6 +2198,56 @@ footer span {
   background: linear-gradient(90deg, #d5ef75, #f1d367);
   border-radius: inherit;
 }
+.achievement-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(126px, 1fr);
+  gap: 7px;
+  margin-top: 9px;
+  padding: 2px 1px 6px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scroll-snap-type: inline proximity;
+}
+.achievement-strip article {
+  min-height: 66px;
+  padding: 8px 9px;
+  display: grid;
+  grid-template-columns: 23px 1fr;
+  grid-template-rows: auto auto;
+  align-content: center;
+  color: #859889;
+  background: #152d25;
+  border: 1px solid #ffffff12;
+  border-radius: 11px;
+  scroll-snap-align: start;
+}
+.achievement-strip article > span {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: #718076;
+}
+.achievement-strip article b {
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.achievement-strip article small {
+  margin-top: 3px;
+  font-size: 8px;
+  line-height: 1.25;
+}
+.achievement-strip article.earned {
+  color: #30452e;
+  background: linear-gradient(145deg, #f4e8a6, #d8ef8a);
+  border-color: #fff4be;
+}
+.achievement-strip article.earned > span {
+  color: #a87620;
+}
 .map-dialog .alphabet {
   grid-template-columns: repeat(6, 1fr);
   margin-top: 8px;
@@ -2482,7 +2532,7 @@ footer span {
     transform: none !important;
     translate: none !important;
     align-content: start;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
     overflow-y: auto;
   }
   .map-dialog .alphabet {
@@ -2491,6 +2541,13 @@ footer span {
     gap: 9px;
     align-content: center;
     margin: 12px 0;
+  }
+  .achievement-strip {
+    grid-auto-columns: 132px;
+    margin-top: 6px;
+  }
+  .achievement-strip article {
+    min-height: 60px;
   }
   .map-dialog .alphabet button {
     min-height: 52px;

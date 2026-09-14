@@ -1021,10 +1021,45 @@ export default function Home() {
     },
   });
   const totalRatingStars = completed.reduce(
-    (total, completedLevel) =>
-      total + Math.max(1, Math.min(3, ratings[String(completedLevel)] ?? 0)),
-    0,
-  );
+      (total, completedLevel) =>
+        total + Math.max(1, Math.min(3, ratings[String(completedLevel)] ?? 0)),
+      0,
+    ),
+    perfectLevels = completed.filter(
+      (completedLevel) => (ratings[String(completedLevel)] ?? 0) >= 3,
+    ).length,
+    achievements = [
+      {
+        name: 'Chữ đầu tiên',
+        detail: 'Qua màn A',
+        value: Math.min(completed.length, 1),
+        target: 1,
+      },
+      {
+        name: 'Nhà sưu tầm',
+        detail: 'Học 10 chữ',
+        value: Math.min(completed.length, 10),
+        target: 10,
+      },
+      {
+        name: 'Cao thủ 3 sao',
+        detail: 'Đạt 3 sao ở 5 màn',
+        value: Math.min(perfectLevels, 5),
+        target: 5,
+      },
+      {
+        name: 'Người giữ A–Z',
+        detail: 'Hoàn thành 26 màn',
+        value: Math.min(completed.length, 26),
+        target: 26,
+      },
+      {
+        name: 'Kho báu 78 sao',
+        detail: 'Thu thập mọi ngôi sao',
+        value: Math.min(totalRatingStars, 78),
+        target: 78,
+      },
+    ];
   const alphabet = (
     <div className="alphabet">
       {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((l, i) => {
@@ -2112,6 +2147,31 @@ export default function Home() {
               <div aria-hidden="true">
                 <i style={{ width: `${(totalRatingStars / 78) * 100}%` }} />
               </div>
+            </div>
+            <div
+              className="achievement-strip"
+              aria-label="Bộ sưu tập thành tích"
+            >
+              {achievements.map((achievement) => {
+                const earned = achievement.value >= achievement.target;
+                return (
+                  <article
+                    key={achievement.name}
+                    className={earned ? 'earned' : ''}
+                    aria-label={`${achievement.name}: ${earned ? 'đã mở khóa' : `${achievement.value} trên ${achievement.target}`}`}
+                  >
+                    <span aria-hidden="true">
+                      {earned ? <Sparkles size={18} /> : <Lock size={15} />}
+                    </span>
+                    <b>{achievement.name}</b>
+                    <small>
+                      {earned
+                        ? 'Đã mở khóa'
+                        : `${achievement.value}/${achievement.target} · ${achievement.detail}`}
+                    </small>
+                  </article>
+                );
+              })}
             </div>
             {alphabet}
             <p className="map-legend">
