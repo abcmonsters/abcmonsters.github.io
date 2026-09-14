@@ -1202,7 +1202,8 @@ footer span {
   position: absolute;
   top: 49px;
   right: 0;
-  padding: 5px 9px;
+  min-width: 112px;
+  padding: 5px 9px 7px;
   color: #fff8c7;
   background: #466c3ee8;
   border: 2px solid #d9ef8d;
@@ -1213,9 +1214,38 @@ footer span {
   box-shadow: 0 3px 0 #29482d;
   animation: combo-pop 0.22s ease-out both;
 }
-.combo-hud b {
+.combo-hud > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.combo-hud > span b {
   color: #f6d762;
   font-size: 13px;
+}
+.combo-hud > em {
+  margin-left: 5px;
+  color: #dcebc0;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0;
+}
+.combo-hud > i {
+  position: absolute;
+  right: 7px;
+  bottom: 3px;
+  left: 7px;
+  height: 2px;
+  overflow: hidden;
+  background: #ffffff35;
+  border-radius: 999px;
+}
+.combo-hud > i b {
+  display: block;
+  height: 100%;
+  background: #f6d762;
+  border-radius: inherit;
+  transition: width 0.08s linear;
 }
 @keyframes combo-pop {
   from {

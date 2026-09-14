@@ -148,6 +148,7 @@ export default function Home() {
     [hp, setHp] = useState(3),
     [stars, setStars] = useState(0),
     [combo, setCombo] = useState(0),
+    [comboTime, setComboTime] = useState(0),
     [damageTaken, setDamageTaken] = useState(0),
     [starGoalsOpen, setStarGoalsOpen] = useState(false),
     [resultStars, setResultStars] = useState(0),
@@ -407,6 +408,7 @@ export default function Home() {
     setHp(3);
     setStars(0);
     setCombo(0);
+    setComboTime(0);
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
@@ -658,7 +660,10 @@ export default function Home() {
             }
             if (e.type === 'stomp') {
               haptic(28);
-              tone(560);
+              if (g.combo === 3)
+                flash('COMBO ×3 · Wendy: Đẹp lắm, tiếp tục nào!');
+              if (g.combo >= 5) flash('COMBO ×5 · Wendy: Chuỗi tối đa rồi!');
+              tone(480 + Math.min(g.combo, 5) * 75);
             }
           } else if (e.type === 'jump') {
             haptic(10);
@@ -702,6 +707,7 @@ export default function Home() {
         setHp(g.hp);
         setStars(g.stars);
         setCombo(g.comboTime > 0 ? g.combo : 0);
+        setComboTime(g.comboTime);
         setDamageTaken(g.damageTaken);
         setEarthReady(earthAbilityReady(g));
         setScore(g.score);
@@ -785,6 +791,7 @@ export default function Home() {
     game.current = createGame(level, hero);
     setStars(0);
     setCombo(0);
+    setComboTime(0);
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
@@ -1266,7 +1273,17 @@ export default function Home() {
                 </button>
                 {combo > 1 && (
                   <output className="combo-hud" aria-label={`Combo ${combo}`}>
-                    COMBO <b>×{Math.min(combo, 5)}</b>
+                    <span>
+                      COMBO <b>×{Math.min(combo, 5)}</b>
+                    </span>
+                    <em>{score.toLocaleString('vi-VN')} điểm</em>
+                    <i aria-hidden="true">
+                      <b
+                        style={{
+                          width: `${Math.min(100, (comboTime / 3) * 100)}%`,
+                        }}
+                      />
+                    </i>
                   </output>
                 )}
                 {progressUser && (
