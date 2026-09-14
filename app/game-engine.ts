@@ -27,14 +27,6 @@ export { WORDS, WORLDS, VOCABULARY } from './lesson-data';
 export const WIDTH = 432,
   HEIGHT = 640,
   WORLD_WIDTH = 4700;
-const BOSS_PATTERN_NAMES = [
-  'NGẮM BẮN',
-  'ZÍC ZẮC',
-  'QUẠT TỪ',
-  'QUÉT NGANG',
-  'BÃO CHỮ',
-  'BÃO CHỮ',
-] as const;
 function difficultyProfile(level: number) {
   const tier = Math.floor(level / 5);
   return {
@@ -171,6 +163,11 @@ export type Game = {
     dash: number;
     direction: number;
     announcedStage: number;
+    skillWindup: number;
+    skillActive: number;
+    skillIndex: number;
+    skillLabel: string;
+    skillAnnounced: boolean;
   };
   shots: (Rect & {
     vx: number;
@@ -762,6 +759,11 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       dash: 0,
       direction: -1,
       announcedStage: 1,
+      skillWindup: 0,
+      skillActive: 0,
+      skillIndex: 0,
+      skillLabel: enemySkillLabel(VOCABULARY[level][0][0]),
+      skillAnnounced: false,
     },
     shots: [],
     icePatches: [],
@@ -1538,6 +1540,8 @@ export function updateGame(
     bossTier = Math.min(5, Math.floor(g.level / 5));
   if (engaged) {
     b.attackTimer -= dt;
+    b.skillWindup = Math.max(0, b.skillWindup - dt);
+    b.skillActive = Math.max(0, b.skillActive - dt);
     const bossStage =
       b.hp <= Math.ceil(b.maxHp / 3)
         ? 3
@@ -1554,7 +1558,10 @@ export function updateGame(
         3,
       );
     }
-    const enraged = bossStage >= 2;
+    const enraged = bossStage >= 2,
+      bossNoun = VOCABULARY[g.level][b.skillIndex % 3],
+      bossSkill = enemySkill(bossNoun[0]),
+      bossPhysics = enemySkillPhysics(bossNoun[0]);
     if (b.dash > 0) {
       b.dash = Math.max(0, b.dash - dt);
       b.x += b.direction * (240 + g.difficulty * 65) * dt;
@@ -1562,15 +1569,27 @@ export function updateGame(
       b.x += Math.sign(p.x - b.x) * (45 + g.difficulty * 35) * dt;
     } else {
       b.warning = 0.8 - b.attackTimer;
+      b.skillWindup = Math.max(b.skillWindup, Math.max(0, b.attackTimer));
+      b.skillLabel = enemySkillLabel(bossNoun[0]);
+      if (!b.skillAnnounced) {
+        b.skillAnnounced = true;
+        g.events.push({
+          type: 'enemySkill',
+          noun: bossNoun,
+          skillLabel: b.skillLabel,
+        });
+      }
       // Commit after a visible wind-up: the player can dodge the charge.
       b.direction = Math.sign(p.x + p.vx * 0.25 - b.x) || -1;
     }
     if (b.attackTimer <= 0) {
-      const noun = VOCABULARY[g.level][Math.floor(g.time) % 3];
+      const noun = bossNoun;
       const dx = p.x + p.w / 2 + p.vx * 0.25 - (b.x + b.w / 2);
       const dy = p.y + p.h / 2 - (b.y + 60);
       const length = Math.max(1, Math.hypot(dx, dy));
-      const speed = 140 + g.difficulty * 65;
+      const speed =
+        (140 + g.difficulty * 65) *
+        (bossSkill === 'gust' ? 1.18 : bossSkill === 'snare' ? 0.88 : 1);
       const spread = bossStage === 3 ? 0.28 : 0.19,
         alternatingTurn = Math.floor(g.time * 1.7) % 2 ? 0.2 : -0.2,
         attackAngles =
@@ -1617,12 +1636,57 @@ export function updateGame(
           vy: shotVx * sin + shotVy * cos,
           life: 4,
           noun,
+          effect:
+            bossSkill === 'freeze' ||
+            bossSkill === 'gust' ||
+            bossSkill === 'snare'
+              ? bossSkill
+              : undefined,
+          power: bossPhysics.power + bossStage * 0.12,
         });
       }
-      b.dash = 0.48;
+      b.skillLabel = enemySkillLabel(noun[0]);
+      b.skillActive = bossPhysics.duration;
+      if (bossSkill === 'freeze') {
+        const platform = g.platforms
+          .filter(
+            (candidate) =>
+              p.x + p.w / 2 >= candidate.x &&
+              p.x + p.w / 2 <= candidate.x + candidate.w &&
+              candidate.y >= p.y + p.h - 18,
+          )
+          .sort((a, c) => a.y - c.y)[0];
+        if (platform)
+          g.icePatches.push({
+            x: Math.max(platform.x, p.x - 62),
+            y: platform.y - 7,
+            w: Math.min(150, platform.w),
+            h: 9,
+            life: 3.4 + bossStage * 0.45,
+            maxLife: 3.4 + bossStage * 0.45,
+            noun,
+          });
+      }
+      if (bossSkill === 'grow') {
+        b.w = 98 + bossStage * 5;
+        b.h = 122 + bossStage * 5;
+      } else {
+        b.w = 86;
+        b.h = 110;
+      }
+      b.dash = bossSkill === 'charge' ? 0.78 : 0.42;
+      if (bossSkill === 'leap') b.y = Math.max(250, b.y - 105 - bossStage * 12);
+      wendySay(g, `Trùm dùng chiêu của ${noun[0]}: ${b.skillLabel}!`, 2.2);
+      b.skillIndex = (b.skillIndex + 1) % 3;
+      b.skillAnnounced = false;
       b.attackTimer =
         (bossStage === 3 ? 2.05 : enraged ? 2.55 : 3.35) - g.difficulty * 0.6;
     }
+    if (b.skillActive <= 0) {
+      b.w += (86 - b.w) * Math.min(1, dt * 5);
+      b.h += (110 - b.h) * Math.min(1, dt * 5);
+    }
+    b.y += (440 - b.y) * Math.min(1, dt * 3.2);
     b.x = Math.max(
       g.worldWidth - (g.sky ? 400 : 650),
       Math.min(g.worldWidth - 140, b.x),
@@ -2331,10 +2395,10 @@ export function drawGame(
       'Arial',
     );
     text(
-      BOSS_PATTERN_NAMES[Math.min(5, Math.floor(g.level / 5))],
+      b.skillLabel,
       bx + 43,
       b.y - 55,
-      8,
+      7,
       night ? '#bcecff' : '#587c66',
       'Arial',
     );
