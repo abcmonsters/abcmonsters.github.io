@@ -112,6 +112,12 @@ export function enemyPace(word: string) {
       : 1;
 }
 type EnemySkillProfile = readonly [skill: EnemySkill, label: string];
+export type EnemySkillPhysics = {
+  power: number;
+  duration: number;
+  cooldown: number;
+  variant: 0 | 1 | 2;
+};
 const skillProfiles: Record<string, EnemySkillProfile> = {
   Apple: ['grow', 'TÁO KHỔNG LỒ'],
   Ant: ['charge', 'ĐÀN KIẾN XUNG PHONG'],
@@ -202,6 +208,17 @@ export function enemySkill(word: string): EnemySkill {
 }
 export function enemySkillLabel(word: string) {
   return skillProfile(word)[1];
+}
+export function enemySkillPhysics(word: string): EnemySkillPhysics {
+  const words = Object.keys(skillProfiles),
+    index = words.indexOf(word);
+  if (index < 0) throw new Error('Missing enemy skill physics: ' + word);
+  return {
+    power: 0.88 + (index % 7) * 0.07,
+    duration: 0.9 + (index % 5) * 0.14,
+    cooldown: 5.8 + (index % 4) * 0.45,
+    variant: (index % 3) as 0 | 1 | 2,
+  };
 }
 export function enemySkillHint(word: string, skill: EnemySkill) {
   const label = enemySkillLabel(word).toLocaleLowerCase('vi');

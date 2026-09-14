@@ -5,6 +5,7 @@ import {
   enemySkill,
   enemySkillHint,
   enemySkillLabel,
+  enemySkillPhysics,
   airborne,
   type EnemyHabitat,
   type EnemyMotion,
@@ -111,6 +112,10 @@ export type Enemy = Rect & {
   skillTimer: number;
   skillActive: number;
   skillSeen: boolean;
+  skillPower: number;
+  skillDuration: number;
+  skillCooldown: number;
+  skillVariant: 0 | 1 | 2;
 };
 export type Particle = {
   x: number;
@@ -169,7 +174,9 @@ export type Game = {
     life: number;
     noun: Noun;
     effect?: 'freeze' | 'gust' | 'snare';
+    power?: number;
   })[];
+  icePatches: (Rect & { life: number; maxLife: number; noun: Noun })[];
   earthShots: (Rect & {
     vx: number;
     vy: number;
@@ -470,11 +477,12 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       origin = slot?.x ?? host.x + host.w / 2;
     usedSpawnXs.push(origin);
     const baseY =
-      behavior === 'fly' || behavior === 'hover'
-        ? 300 + (i % 3) * 48
-        : behavior === 'swim'
-          ? 492 + (i % 2) * 34
-          : host.y - 44;
+        behavior === 'fly' || behavior === 'hover'
+          ? 300 + (i % 3) * 48
+          : behavior === 'swim'
+            ? 492 + (i % 2) * 34
+            : host.y - 44,
+      skillPhysics = enemySkillPhysics(noun[0]);
     return {
       vx: 0,
       alert: false,
@@ -511,6 +519,10 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       skillTimer: 4.8 + (i % 3) * 1.1,
       skillActive: 0,
       skillSeen: false,
+      skillPower: skillPhysics.power,
+      skillDuration: skillPhysics.duration,
+      skillCooldown: skillPhysics.cooldown,
+      skillVariant: skillPhysics.variant,
     };
   });
   if (level === 0) {
@@ -747,6 +759,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       announcedStage: 1,
     },
     shots: [],
+    icePatches: [],
     earthShots: [],
     earthCooldown: 0,
     wendyMessage: 'Wendy báo danh! Tớ bay, cậu chạy nhé!',
@@ -1037,6 +1050,17 @@ export function updateGame(
     q.vy += 400 * dt;
   }
   g.particles = g.particles.filter((q) => q.life > 0);
+  for (const patch of g.icePatches) {
+    patch.life -= dt;
+    if (
+      p.grounded &&
+      p.x + p.w > patch.x &&
+      p.x < patch.x + patch.w &&
+      Math.abs(p.y + p.h - patch.y) < 18
+    )
+      g.slipperyUntil = Math.max(g.slipperyUntil, g.time + 0.16);
+  }
+  g.icePatches = g.icePatches.filter((patch) => patch.life > 0);
   for (const plat of g.platforms) {
     const oldX = plat.x,
       oldY = plat.y,
@@ -1281,11 +1305,40 @@ export function updateGame(
     if (e.alert) {
       e.skillTimer -= dt;
       if (e.skillTimer <= 0) {
-        e.skillActive = e.skill === 'grow' ? 2.4 : 1.15;
+        e.skillActive =
+          e.skill === 'grow' ? e.skillDuration * 2.1 : e.skillDuration;
         e.skillTimer =
-          Math.max(4.2, 7.2 - g.difficulty * 1.5) + (e.phase % 1.1);
+          Math.max(4.1, e.skillCooldown - g.difficulty * 0.75) +
+          (e.phase % 0.7);
         if (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
           e.fireTimer = Math.min(e.fireTimer, 0.55);
+        if (e.skill === 'freeze') {
+          const icePlatform = g.platforms
+              .filter(
+                (platform) =>
+                  p.x + p.w / 2 >= platform.x - 30 &&
+                  p.x + p.w / 2 <= platform.x + platform.w + 30 &&
+                  platform.y >= p.y + p.h - 20,
+              )
+              .sort((a, b) => a.y - b.y)[0],
+            patchWidth = 120 + e.skillVariant * 34;
+          if (icePlatform)
+            g.icePatches.push({
+              x: Math.max(
+                icePlatform.x,
+                Math.min(
+                  icePlatform.x + icePlatform.w - patchWidth,
+                  p.x - patchWidth / 2,
+                ),
+              ),
+              y: icePlatform.y - 7,
+              w: Math.min(patchWidth, icePlatform.w),
+              h: 9,
+              life: 3.2 + e.skillPower,
+              maxLife: 3.2 + e.skillPower,
+              noun: e.noun,
+            });
+        }
         g.events.push({
           type: 'enemySkill',
           noun: e.noun,
@@ -1311,7 +1364,9 @@ export function updateGame(
         profile.pursuitSpeed *
         enemyPace(e.noun[0]) *
         (slowed ? 0.42 : 1) *
-        (e.skill === 'charge' && e.skillActive > 0 ? 2.35 : 1);
+        (e.skill === 'charge' && e.skillActive > 0
+          ? 1.65 + e.skillPower * 0.72
+          : 1);
     if (e.behavior === 'drop') {
       e.vx = 0;
       e.dropClock -= dt;
@@ -1373,7 +1428,7 @@ export function updateGame(
           e.behavior === 'hop'
             ? e.alert
               ? e.skill === 'leap' && e.skillActive > 0
-                ? 145
+                ? 118 + e.skillPower * 42
                 : 100
               : 56
             : e.behavior === 'walk'
@@ -1401,27 +1456,44 @@ export function updateGame(
         const dy = p.y + p.h / 2 - (e.y + e.h / 2);
         const length = Math.max(1, Math.hypot(dx, dy));
         const speed = profile.shotSpeed;
-        g.shots.push({
-          x: e.x + e.w / 2 - width / 2,
-          y: e.y + 12,
-          w: width,
-          h: 20,
-          vx: (dx / length) * speed,
-          vy: (dy / length) * speed,
-          life: 3.2,
-          noun: e.noun,
-          effect:
+        const effect =
             e.skillActive > 0 &&
             (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
               ? e.skill
               : undefined,
-        });
+          skillShot = {
+            x: e.x + e.w / 2 - width / 2,
+            y: e.y + 12,
+            w: width,
+            h: 20,
+            vx: (dx / length) * speed,
+            vy: (dy / length) * speed,
+            life: 3.2,
+            noun: e.noun,
+            effect,
+            power: e.skillPower,
+          };
+        g.shots.push(skillShot);
+        if (effect && e.skillVariant > 0)
+          for (let spread = 1; spread <= e.skillVariant; spread++)
+            g.shots.push({
+              ...skillShot,
+              vx: skillShot.vx * (1 - spread * 0.06),
+              vy: skillShot.vy + (spread % 2 ? -1 : 1) * (42 + spread * 18),
+              life: skillShot.life - spread * 0.12,
+            });
         e.fireTimer = profile.shotCooldown + (e.phase % 0.45);
       }
     } else e.fireTimer = Math.max(0.8, e.fireTimer);
     const giant = e.skill === 'grow' && e.skillActive > 0,
+      giantExtra = giant ? 16 + e.skillPower * 14 : 0,
       enemyBody: Rect = giant
-        ? { x: e.x - 14, y: e.y - 26, w: e.w + 28, h: e.h + 26 }
+        ? {
+            x: e.x - giantExtra / 2,
+            y: e.y - giantExtra,
+            w: e.w + giantExtra,
+            h: e.h + giantExtra,
+          }
         : e;
     if (overlaps(p, enemyBody)) {
       if (p.vy > 0 && oldBottom < enemyBody.y + 19) {
@@ -1434,7 +1506,11 @@ export function updateGame(
         burst(g, e.x + 24, e.y + 20, '#d5ef75', 14);
         learn(g, e.noun, 'stomp');
         wendySay(g, 'Bẹp! Cú nhảy đẹp đó!');
-      } else hurt(g);
+      } else {
+        if (e.skill === 'charge' && e.skillActive > 0)
+          p.vx += Math.sign(e.vx || distance) * (150 + e.skillPower * 100);
+        hurt(g);
+      }
     }
   }
   if (g.mode !== 'playing') return;
@@ -1542,9 +1618,11 @@ export function updateGame(
     s.life -= dt;
     if (overlaps(p, s)) {
       s.life = 0;
-      if (s.effect === 'freeze') g.slipperyUntil = g.time + 3.4;
-      if (s.effect === 'snare') g.slowedUntil = g.time + 2.5;
-      if (s.effect === 'gust') p.vx += Math.sign(s.vx) * 260;
+      if (s.effect === 'freeze')
+        g.slipperyUntil = g.time + 2.5 + (s.power ?? 1);
+      if (s.effect === 'snare') g.slowedUntil = g.time + 1.6 + (s.power ?? 1);
+      if (s.effect === 'gust')
+        p.vx += Math.sign(s.vx) * (190 + (s.power ?? 1) * 85);
       hurt(g);
     }
   }
@@ -1903,6 +1981,28 @@ export function drawGame(
         text('!', x + p.w / 2, p.y - 8, 17, '#9c392e');
     }
   }
+  for (const patch of g.icePatches) {
+    const x = patch.x - cam,
+      fade = Math.min(1, patch.life) * 0.78;
+    if (x + patch.w < 0 || x > WIDTH) continue;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    const ice = ctx.createLinearGradient(x, patch.y, x, patch.y + patch.h);
+    ice.addColorStop(0, '#e9ffff');
+    ice.addColorStop(1, '#5fc6e8');
+    ctx.fillStyle = ice;
+    ctx.fillRect(x, patch.y, patch.w, patch.h);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    for (let crack = 18; crack < patch.w; crack += 31) {
+      ctx.beginPath();
+      ctx.moveTo(x + crack, patch.y + 1);
+      ctx.lineTo(x + crack + 7, patch.y + 5);
+      ctx.lineTo(x + crack + 2, patch.y + 8);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   // A visible flag shows the latest safe respawn point.
   if (g.checkpoint > 200) {
     const checkpointPlatform = g.platforms[g.checkpointPlatformIndex],
@@ -2041,6 +2141,33 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
+      if (e.skillActive > 0) {
+        const skillColor =
+          e.skill === 'freeze'
+            ? '#7ee9ff'
+            : e.skill === 'gust'
+              ? '#d9ffa4'
+              : e.skill === 'snare'
+                ? '#e7b5ff'
+                : e.skill === 'grow'
+                  ? '#ffd16f'
+                  : '#ff9d75';
+        ctx.globalAlpha = 0.5 + Math.sin(t * 12) * 0.18;
+        ctx.strokeStyle = skillColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(x + e.w / 2, e.y + e.h + 7, 27, 7, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        text(
+          enemySkillLabel(e.noun[0]),
+          x + e.w / 2,
+          e.y - 35,
+          7,
+          skillColor,
+          'Arial',
+        );
+      }
       if (e.slowUntil > g.time) {
         ctx.strokeStyle = '#64dff4';
         ctx.lineWidth = 2;
