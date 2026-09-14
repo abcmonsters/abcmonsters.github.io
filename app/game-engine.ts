@@ -697,10 +697,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
     if (
       platform.moving &&
       platforms.some(
-        (other) =>
-          other !== platform &&
-          !other.ground &&
-          envelopesOverlap(platform, other),
+        (other) => other !== platform && envelopesOverlap(platform, other),
       )
     ) {
       platform.moving = false;
@@ -1268,6 +1265,11 @@ export function updateGame(
     }
     const ground = g.platforms[e.platformIndex];
     if (ground && !['fly', 'swim', 'hover'].includes(e.behavior)) {
+      // Ground enemies live in the platform's local frame. Carry their body
+      // by the exact platform delta before applying patrol/jump movement so
+      // they never trail behind or float above a moving/falling platform.
+      e.x += ground.dx;
+      if (e.behavior !== 'drop' || e.dropState !== 'fall') e.y += ground.dy;
       e.origin += ground.dx;
       e.zoneStart += ground.dx;
       e.zoneEnd += ground.dx;
@@ -2212,7 +2214,7 @@ export function drawGame(
     // Raster enemies contain a small transparent foot margin. Sink grounded
     // artwork into the illustrated surface while keeping collision geometry
     // unchanged, so paws/feet visually meet the grass or platform edge.
-    const contactDepth = nounFootInset(e.noun[0], 46) + 1.25,
+    const contactDepth = nounFootInset(e.noun[0], 46),
       enemyFootOffset = airborne(e.behavior)
         ? 0
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
