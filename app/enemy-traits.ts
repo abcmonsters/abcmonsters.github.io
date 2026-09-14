@@ -243,6 +243,16 @@ export function enemySkillCounter(
 export function enemyCounterName(counter: EnemyCounter) {
   return { mon: 'Mon', mori: 'Mori', rio: 'Rio', sol: 'Sol' }[counter];
 }
+export function enemySkillEffect(skill: EnemySkill) {
+  return {
+    grow: 'Phình lớn và tăng vùng va chạm',
+    freeze: 'Đóng băng bệ, làm bước chân trơn trượt',
+    charge: 'Tăng tốc lao tới và đẩy lùi',
+    leap: 'Bật cao để chặn đường nhảy',
+    gust: 'Bắn luồng gió đẩy nhân vật',
+    snare: 'Bắn dây trói làm giảm tốc độ',
+  }[skill];
+}
 export function enemySkillHint(word: string, skill: EnemySkill) {
   const label = enemySkillLabel(word).toLocaleLowerCase('vi'),
     counter = enemyCounterName(enemySkillCounter(word, skill));

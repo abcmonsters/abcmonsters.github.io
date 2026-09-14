@@ -35,6 +35,13 @@ import {
   voiceLabel,
 } from './recorded-speech';
 import { VOCABULARY, type Noun } from './lesson-data';
+import {
+  enemyCounterName,
+  enemySkill,
+  enemySkillCounter,
+  enemySkillEffect,
+  enemySkillLabel,
+} from './enemy-traits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Play,
@@ -2089,7 +2096,7 @@ export default function Home() {
               <X size={22} />
             </button>
             <header className="wordbook-heading">
-              <span>SỔ TỪ VỰNG A–Z</span>
+              <span>SỔ ENEMY & TỪ VỰNG A–Z</span>
               <h2 id="wordbook-title">Kho báu chữ cái</h2>
               <p>{completed.length}/26 trang đã mở khóa</p>
             </header>
@@ -2126,26 +2133,43 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="wordbook-words">
-                  {VOCABULARY[wordbookLevel].map((noun) => (
-                    <button
-                      type="button"
-                      key={noun[0]}
-                      onClick={() => say(noun[0])}
-                    >
-                      <Image
-                        unoptimized
-                        src={nounArtPath(noun[0])}
-                        alt={noun[1]}
-                        width={72}
-                        height={72}
-                      />
-                      <span>
-                        <b>{noun[0]}</b>
-                        <small>{noun[1]}</small>
-                      </span>
-                      <Volume2 size={17} />
-                    </button>
-                  ))}
+                  {VOCABULARY[wordbookLevel].map((noun) => {
+                    const skill = enemySkill(noun[0]),
+                      counter = enemyCounterName(
+                        enemySkillCounter(noun[0], skill),
+                      );
+                    return (
+                      <button
+                        type="button"
+                        key={noun[0]}
+                        onClick={() => say(noun[0])}
+                      >
+                        <Image
+                          unoptimized
+                          src={nounArtPath(noun[0])}
+                          alt={noun[1]}
+                          width={72}
+                          height={72}
+                        />
+                        <span>
+                          <b>{noun[0]}</b>
+                          <small>{noun[1]}</small>
+                          <span className="enemy-skill-name">
+                            {enemySkillLabel(noun[0])}
+                          </span>
+                          <small className="enemy-skill-effect">
+                            {enemySkillEffect(skill)}
+                          </small>
+                          <span
+                            className={`enemy-counter counter-${counter.toLowerCase()}`}
+                          >
+                            Điểm yếu: {counter}
+                          </span>
+                        </span>
+                        <Volume2 size={17} />
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             ) : (

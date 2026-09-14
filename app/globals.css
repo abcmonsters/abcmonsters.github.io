@@ -1936,7 +1936,7 @@ footer span {
   gap: 9px;
 }
 .wordbook-words > button {
-  min-height: 70px;
+  min-height: 108px;
   display: grid;
   grid-template-columns: 72px 1fr auto;
   align-items: center;
@@ -1956,6 +1956,42 @@ footer span {
 .wordbook-words b,
 .wordbook-words small {
   display: block;
+}
+.wordbook-words .enemy-skill-name {
+  display: block;
+  margin-top: 6px;
+  color: #57763f;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.45px;
+}
+.wordbook-words .enemy-skill-effect {
+  margin-top: 2px;
+  color: #60715a;
+  font-size: 9px;
+  line-height: 1.25;
+}
+.wordbook-words .enemy-counter {
+  display: inline-flex;
+  margin-top: 5px;
+  padding: 3px 7px;
+  color: #fff;
+  background: #667b52;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.wordbook-words .counter-mon {
+  background: #8a673d;
+}
+.wordbook-words .counter-mori {
+  background: #43834d;
+}
+.wordbook-words .counter-rio {
+  background: #3984b8;
+}
+.wordbook-words .counter-sol {
+  background: #c75243;
 }
 .wordbook-words b {
   font-size: 17px;
