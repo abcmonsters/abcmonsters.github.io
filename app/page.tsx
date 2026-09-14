@@ -169,6 +169,10 @@ export default function Home() {
     [mapOpen, setMapOpen] = useState(false),
     [wordbookOpen, setWordbookOpen] = useState(false),
     [wordbookLevel, setWordbookLevel] = useState(0),
+    [practiceActive, setPracticeActive] = useState(false),
+    [practiceIndex, setPracticeIndex] = useState(0),
+    [practiceInput, setPracticeInput] = useState(''),
+    [practiceMessage, setPracticeMessage] = useState(''),
     [notice, setNotice] = useState(''),
     [wordRewardQueue, setWordRewardQueue] = useState<Noun[]>([]),
     [quizHint, setQuizHint] = useState(''),
@@ -234,6 +238,38 @@ export default function Home() {
   const say = useCallback((phrase: string) => {
     if (!mutedRef.current) speakVoice(phrase);
   }, []);
+  const startWordPractice = useCallback(() => {
+    setPracticeActive(true);
+    setPracticeIndex(0);
+    setPracticeInput('');
+    setPracticeMessage('Nghe kỹ rồi gõ từ tiếng Anh.');
+    say(VOCABULARY[wordbookLevel][0][0]);
+  }, [say, wordbookLevel]);
+  const submitWordPractice = useCallback(
+    (event: React.SyntheticEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const expected = VOCABULARY[wordbookLevel][practiceIndex][0];
+      if (
+        practiceInput.trim().toLocaleLowerCase('en') !== expected.toLowerCase()
+      ) {
+        setPracticeMessage('Chưa đúng—nghe lại và thử thêm lần nữa nhé!');
+        say(expected);
+        return;
+      }
+      if (practiceIndex < 2) {
+        const nextIndex = practiceIndex + 1;
+        setPracticeIndex(nextIndex);
+        setPracticeInput('');
+        setPracticeMessage(`Chính xác: ${expected}! Tiếp tục từ kế tiếp.`);
+        say(VOCABULARY[wordbookLevel][nextIndex][0]);
+      } else {
+        setPracticeActive(false);
+        setPracticeInput('');
+        setPracticeMessage('Hoàn thành 3/3 từ—trí nhớ tuyệt lắm!');
+      }
+    },
+    [practiceIndex, practiceInput, say, wordbookLevel],
+  );
   const toggleMuted = useCallback(() => {
     const next = !mutedRef.current;
     mutedRef.current = next;
@@ -2124,7 +2160,12 @@ export default function Home() {
                       disabled={!learnedLetter}
                       aria-pressed={wordbookLevel === index}
                       aria-label={`${bookLetter}${learnedLetter ? ', đã học' : ', chưa học'}`}
-                      onClick={() => setWordbookLevel(index)}
+                      onClick={() => {
+                        setWordbookLevel(index);
+                        setPracticeActive(false);
+                        setPracticeInput('');
+                        setPracticeMessage('');
+                      }}
                     >
                       {bookLetter}
                       {!learnedLetter && <Lock size={10} aria-hidden="true" />}
@@ -2133,58 +2174,116 @@ export default function Home() {
                 })}
             </div>
             {completed.includes(wordbookLevel) ? (
-              <section className="wordbook-page">
-                <div className="wordbook-letter">
-                  <b>{String.fromCharCode(65 + wordbookLevel)}</b>
-                  <span>{String.fromCharCode(97 + wordbookLevel)}</span>
+              <>
+                {practiceActive ? (
+                  <section className="word-practice" aria-live="polite">
+                    <span>LUYỆN NGHE · TỪ {practiceIndex + 1}/3</span>
+                    <h3>Nghe và gõ đúng từ</h3>
+                    <button
+                      type="button"
+                      className="word-practice-listen"
+                      onClick={() =>
+                        say(VOCABULARY[wordbookLevel][practiceIndex][0])
+                      }
+                    >
+                      <Volume2 size={21} /> Nghe lại
+                    </button>
+                    <form onSubmit={submitWordPractice}>
+                      <label htmlFor="practice-word">Từ tiếng Anh</label>
+                      <input
+                        id="practice-word"
+                        value={practiceInput}
+                        onChange={(event) =>
+                          setPracticeInput(event.target.value)
+                        }
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        enterKeyHint={practiceIndex < 2 ? 'next' : 'done'}
+                        autoFocus
+                      />
+                      <button type="submit" disabled={!practiceInput.trim()}>
+                        Kiểm tra
+                      </button>
+                    </form>
+                    <p>{practiceMessage}</p>
+                    <button
+                      type="button"
+                      className="word-practice-exit"
+                      onClick={() => setPracticeActive(false)}
+                    >
+                      Quay lại Sổ enemy
+                    </button>
+                  </section>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => say(String.fromCharCode(65 + wordbookLevel))}
+                    className="wordbook-practice-launch"
+                    onClick={startWordPractice}
                   >
-                    <Volume2 size={17} /> Nghe chữ
+                    <Volume2 size={18} /> Luyện nghe và gõ 3 từ
                   </button>
-                </div>
-                <div className="wordbook-words">
-                  {VOCABULARY[wordbookLevel].map((noun) => {
-                    const skill = enemySkill(noun[0]),
-                      counter = enemyCounterName(
-                        enemySkillCounter(noun[0], skill),
-                      );
-                    return (
+                )}
+                {practiceMessage && !practiceActive && (
+                  <p className="wordbook-practice-result">{practiceMessage}</p>
+                )}
+                {!practiceActive && (
+                  <section className="wordbook-page">
+                    <div className="wordbook-letter">
+                      <b>{String.fromCharCode(65 + wordbookLevel)}</b>
+                      <span>{String.fromCharCode(97 + wordbookLevel)}</span>
                       <button
                         type="button"
-                        key={noun[0]}
-                        onClick={() => say(noun[0])}
+                        onClick={() =>
+                          say(String.fromCharCode(65 + wordbookLevel))
+                        }
                       >
-                        <Image
-                          unoptimized
-                          src={nounArtPath(noun[0])}
-                          alt={noun[1]}
-                          width={72}
-                          height={72}
-                        />
-                        <span>
-                          <b>{noun[0]}</b>
-                          <small>{noun[1]}</small>
-                          <span className="enemy-skill-name">
-                            {enemySkillLabel(noun[0])}
-                          </span>
-                          <small className="enemy-skill-effect">
-                            {enemySkillEffect(skill)} ·{' '}
-                            {enemySkillSignature(noun[0])}
-                          </small>
-                          <span
-                            className={`enemy-counter counter-${counter.toLowerCase()}`}
-                          >
-                            Điểm yếu: {counter}
-                          </span>
-                        </span>
-                        <Volume2 size={17} />
+                        <Volume2 size={17} /> Nghe chữ
                       </button>
-                    );
-                  })}
-                </div>
-              </section>
+                    </div>
+                    <div className="wordbook-words">
+                      {VOCABULARY[wordbookLevel].map((noun) => {
+                        const skill = enemySkill(noun[0]),
+                          counter = enemyCounterName(
+                            enemySkillCounter(noun[0], skill),
+                          );
+                        return (
+                          <button
+                            type="button"
+                            key={noun[0]}
+                            onClick={() => say(noun[0])}
+                          >
+                            <Image
+                              unoptimized
+                              src={nounArtPath(noun[0])}
+                              alt={noun[1]}
+                              width={72}
+                              height={72}
+                            />
+                            <span>
+                              <b>{noun[0]}</b>
+                              <small>{noun[1]}</small>
+                              <span className="enemy-skill-name">
+                                {enemySkillLabel(noun[0])}
+                              </span>
+                              <small className="enemy-skill-effect">
+                                {enemySkillEffect(skill)} ·{' '}
+                                {enemySkillSignature(noun[0])}
+                              </small>
+                              <span
+                                className={`enemy-counter counter-${counter.toLowerCase()}`}
+                              >
+                                Điểm yếu: {counter}
+                              </span>
+                            </span>
+                            <Volume2 size={17} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </>
             ) : (
               <div className="wordbook-empty">
                 <Lock size={30} />
