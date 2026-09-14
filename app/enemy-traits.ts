@@ -118,6 +118,7 @@ export type EnemySkillPhysics = {
   cooldown: number;
   variant: 0 | 1 | 2;
 };
+export type EnemyCounter = 'mon' | 'mori' | 'rio' | 'sol';
 const skillProfiles: Record<string, EnemySkillProfile> = {
   Apple: ['grow', 'TÁO KHỔNG LỒ'],
   Ant: ['charge', 'ĐÀN KIẾN XUNG PHONG'],
@@ -220,15 +221,38 @@ export function enemySkillPhysics(word: string): EnemySkillPhysics {
     variant: (index % 3) as 0 | 1 | 2,
   };
 }
+export function enemySkillCounter(
+  word: string,
+  skill = enemySkill(word),
+): EnemyCounter {
+  if (['Sun', 'Volcano', 'Rocket'].includes(word)) return 'rio';
+  if (['Yarn', 'Nest', 'Quilt', 'Jacket', 'Mushroom'].includes(word))
+    return 'sol';
+  if (['Whale', 'Fish', 'Duck', 'Juice', 'Jellyfish'].includes(word))
+    return 'mori';
+  const counters: Record<EnemySkill, EnemyCounter> = {
+    grow: 'mori',
+    freeze: 'sol',
+    charge: 'mon',
+    leap: 'rio',
+    gust: 'mori',
+    snare: 'sol',
+  };
+  return counters[skill];
+}
+export function enemyCounterName(counter: EnemyCounter) {
+  return { mon: 'Mon', mori: 'Mori', rio: 'Rio', sol: 'Sol' }[counter];
+}
 export function enemySkillHint(word: string, skill: EnemySkill) {
-  const label = enemySkillLabel(word).toLocaleLowerCase('vi');
+  const label = enemySkillLabel(word).toLocaleLowerCase('vi'),
+    counter = enemyCounterName(enemySkillCounter(word, skill));
   return {
-    grow: `${word} dùng ${label}—giữ khoảng cách rồi nhảy lên!`,
-    freeze: `${word} dùng ${label}—đổi hướng sẽ bị trượt!`,
-    charge: `${word} dùng ${label}—hãy nhảy qua đầu!`,
-    leap: `${word} dùng ${label}—đừng đứng yên!`,
-    gust: `${word} dùng ${label}—né chữ màu xanh nhé!`,
-    snare: `${word} dùng ${label}—né chữ màu tím nhé!`,
+    grow: `${word} dùng ${label}—giữ khoảng cách! ${counter} có thể phá chiêu.`,
+    freeze: `${word} dùng ${label}—đường sẽ trượt! ${counter} có thể phá băng.`,
+    charge: `${word} dùng ${label}—nhảy qua đầu! ${counter} có thể chặn lại.`,
+    leap: `${word} dùng ${label}—đừng đứng yên! ${counter} có thể hạ nó.`,
+    gust: `${word} dùng ${label}—né chữ xanh! ${counter} có thể chắn gió.`,
+    snare: `${word} dùng ${label}—né chữ tím! ${counter} có thể phá trói.`,
   }[skill];
 }
 export function airborne(motion: EnemyMotion) {

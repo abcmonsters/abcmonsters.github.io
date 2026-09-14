@@ -3,9 +3,11 @@ import {
   enemyMotion,
   enemyPace,
   enemySkill,
+  enemySkillCounter,
   enemySkillHint,
   enemySkillLabel,
   enemySkillPhysics,
+  enemyCounterName,
   airborne,
   type EnemyHabitat,
   type EnemyMotion,
@@ -73,6 +75,7 @@ export type GameEvent = {
     | 'heal'
     | 'earth'
     | 'earthHit'
+    | 'counter'
     | 'enemySkill';
   food?: string;
   index?: number;
@@ -1664,15 +1667,35 @@ export function updateGame(
           learn(g, e.noun, 'stomp');
           wendySay(g, `${e.noun[0]} hết đường chạy nhé!`);
         } else {
+          const counterHero = enemySkillCounter(e.noun[0], e.skill),
+            countered = e.skillActive > 0 && rock.hero === counterHero;
+          if (countered) {
+            e.skillActive = 0;
+            e.skillTimer = Math.max(e.skillTimer, 3.2);
+            for (const shot of g.shots)
+              if (shot.noun[0] === e.noun[0]) shot.life = 0;
+            for (const patch of g.icePatches)
+              if (patch.noun[0] === e.noun[0]) patch.life = 0;
+            g.score += 100;
+            burst(g, e.x + e.w / 2, e.y + e.h / 2, '#f7eb8c', 22);
+            g.events.push({
+              type: 'counter',
+              noun: e.noun,
+              hero: rock.hero,
+              skillLabel: enemySkillLabel(e.noun[0]),
+            });
+          }
           wendySay(
             g,
-            rock.hero === 'rio'
-              ? `Nước làm ${e.noun[0]} chậm lại rồi!`
-              : rock.hero === 'sol'
-                ? `${e.noun[0]} đang bốc cháy!`
-                : rock.hero === 'mori'
-                  ? `Khúc cây làm ${e.noun[0]} choáng rồi!`
-                  : `Đá đẩy lùi ${e.noun[0]}—còn ${e.rockHp} máu!`,
+            countered
+              ? `Phản công chính xác: ${e.noun[0]}!`
+              : rock.hero === 'rio'
+                ? `Nước làm ${e.noun[0]} chậm lại rồi!`
+                : rock.hero === 'sol'
+                  ? `${e.noun[0]} đang bốc cháy!`
+                  : rock.hero === 'mori'
+                    ? `Khúc cây làm ${e.noun[0]} choáng rồi!`
+                    : `Đá đẩy lùi ${e.noun[0]}—còn ${e.rockHp} máu!`,
             1.7,
           );
         }
@@ -2165,6 +2188,14 @@ export function drawGame(
           e.y - 35,
           7,
           skillColor,
+          'Arial',
+        );
+        text(
+          `ĐIỂM YẾU: ${enemyCounterName(enemySkillCounter(e.noun[0], e.skill)).toUpperCase()}`,
+          x + e.w / 2,
+          e.y - 25,
+          6,
+          '#fff8c8',
           'Arial',
         );
       }

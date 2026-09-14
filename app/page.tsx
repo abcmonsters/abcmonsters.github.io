@@ -679,6 +679,16 @@ export default function Home() {
           } else if (e.type === 'earthHit') {
             haptic([24, 18, 32]);
             tone(120);
+          } else if (e.type === 'counter' && e.noun && e.hero) {
+            const counterCharacter =
+              CHARACTERS.find((candidate) => candidate.id === e.hero) ??
+              CHARACTERS[0];
+            flash(
+              `PHẢN CÔNG! ${counterCharacter.name} phá ${e.skillLabel ?? 'kỹ năng'} của ${e.noun[0]} · +100`,
+            );
+            say(`${e.noun[0]}. Counter!`);
+            haptic([28, 20, 48]);
+            tone(920);
           } else if (e.type === 'enemySkill' && e.noun && e.skillLabel) {
             flash(`${e.noun[0]} · ${e.skillLabel}`);
             say(e.noun[0]);
