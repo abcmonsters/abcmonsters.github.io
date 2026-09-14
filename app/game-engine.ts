@@ -1289,7 +1289,7 @@ export function updateGame(
         g.events.push({
           type: 'enemySkill',
           noun: e.noun,
-          skillLabel: enemySkillLabel(e.skill),
+          skillLabel: enemySkillLabel(e.noun[0]),
         });
         if (!e.skillSeen) wendySay(g, enemySkillHint(e.noun[0], e.skill), 3.2);
         e.skillSeen = true;

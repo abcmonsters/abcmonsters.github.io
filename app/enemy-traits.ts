@@ -111,35 +111,107 @@ export function enemyPace(word: string) {
       ? 1.15
       : 1;
 }
-export function enemySkill(word: string): EnemySkill {
-  if (['Penguin', 'Ice cream', 'Igloo'].includes(word)) return 'freeze';
-  const motion = enemyMotion(word);
-  if (motion === 'drop' || ['Elephant', 'Dinosaur', 'Whale'].includes(word))
-    return 'grow';
-  if (motion === 'hop') return 'leap';
-  if (motion === 'fly' || motion === 'hover') return 'gust';
-  if (motion === 'swim' || ['Snake', 'Yarn', 'Quilt', 'Zipper'].includes(word))
-    return 'snare';
-  return 'charge';
+type EnemySkillProfile = readonly [skill: EnemySkill, label: string];
+const skillProfiles: Record<string, EnemySkillProfile> = {
+  Apple: ['grow', 'TÁO KHỔNG LỒ'],
+  Ant: ['charge', 'ĐÀN KIẾN XUNG PHONG'],
+  Alligator: ['charge', 'CÚ NGOẠM ĐẦM LẦY'],
+  Ball: ['charge', 'BÓNG LĂN SIÊU TỐC'],
+  Bee: ['gust', 'CÁNH ONG LỐC XOÁY'],
+  Butterfly: ['gust', 'BỤI CÁNH BƯỚM'],
+  Cat: ['charge', 'MÈO VỒ CHỚP NHOÁNG'],
+  Car: ['charge', 'Ô TÔ TĂNG TỐC'],
+  Crab: ['snare', 'CÀNG CUA KẸP CHẬM'],
+  Dog: ['charge', 'CHÓ RƯỢT ĐUỔI'],
+  Duck: ['gust', 'VỊT VỖ CÁNH NƯỚC'],
+  Dinosaur: ['grow', 'KHỦNG LONG KHỔNG LỒ'],
+  Elephant: ['grow', 'VOI DẬM ĐẤT'],
+  Egg: ['grow', 'TRỨNG NỞ BẤT NGỜ'],
+  Eagle: ['gust', 'ĐẠI BÀNG BỔ NHÀO'],
+  Fish: ['snare', 'CÁ QUẤT SÓNG'],
+  Frog: ['leap', 'ẾCH NHẢY VỌT'],
+  Fox: ['charge', 'CÁO LAO LẮT LÉO'],
+  Grapes: ['grow', 'CHÙM NHO PHÌNH TO'],
+  Goat: ['charge', 'DÊ HÚC SƯỜN ĐỒI'],
+  Giraffe: ['grow', 'HƯƠU CAO VƯƠN CỔ'],
+  Hat: ['gust', 'MŨ XOAY GIÓ'],
+  Horse: ['charge', 'NGỰA PHI NƯỚC ĐẠI'],
+  Helicopter: ['gust', 'TRỰC THĂNG QUẠT GIÓ'],
+  'Ice cream': ['freeze', 'KEM ĐÔNG LẠNH'],
+  Igloo: ['freeze', 'NHÀ TUYẾT BĂNG GIÁ'],
+  Insect: ['charge', 'CÔN TRÙNG BÒ NHANH'],
+  Juice: ['snare', 'NƯỚC ÉP SÓNG SÁNH'],
+  Jellyfish: ['snare', 'SỨA PHÓNG XÚC TU'],
+  Jacket: ['gust', 'ÁO KHOÁC CUỐN GIÓ'],
+  Kite: ['gust', 'DIỀU GIẬT DÂY'],
+  Key: ['charge', 'CHÌA KHÓA XOAY TÍT'],
+  Kangaroo: ['leap', 'CHUỘT TÚI BẬT XA'],
+  Lion: ['charge', 'SƯ TỬ VỒ MỒI'],
+  Lemon: ['grow', 'CHANH CHUA PHÌNH TO'],
+  Ladybug: ['charge', 'BỌ RÙA LƯỚT NHANH'],
+  Moon: ['gust', 'TRĂNG KÉO THỦY TRIỀU'],
+  Monkey: ['leap', 'KHỈ NHẢY CHUYỀN CÀNH'],
+  Mushroom: ['grow', 'NẤM MỌC KHỔNG LỒ'],
+  Nest: ['snare', 'TỔ CHIM GIĂNG CÀNH'],
+  Nose: ['gust', 'MŨI HẮT HƠI'],
+  Nut: ['grow', 'HẠT NẢY MẦM LỚN'],
+  Orange: ['grow', 'CAM TRÒN KHỔNG LỒ'],
+  Octopus: ['snare', 'BẠCH TUỘC QUẤN CHẶT'],
+  Owl: ['gust', 'CÚ MÈO LẶN ĐÊM'],
+  Penguin: ['freeze', 'CÁNH CỤT ĐÓNG BĂNG'],
+  Panda: ['charge', 'GẤU TRÚC LĂN TRÒN'],
+  Pineapple: ['grow', 'DỨA GAI KHỔNG LỒ'],
+  Queen: ['charge', 'NỮ HOÀNG RA LỆNH'],
+  Quail: ['gust', 'CHIM CÚT BAY VỤT'],
+  Quilt: ['snare', 'CHĂN BÔNG TRÙM KÍN'],
+  Rabbit: ['leap', 'THỎ BẬT TAI DÀI'],
+  Rocket: ['gust', 'TÊN LỬA PHỤT KHÓI'],
+  Robot: ['charge', 'ROBOT TĂNG TỐC'],
+  Sun: ['gust', 'MẶT TRỜI THỔI NÓNG'],
+  Snake: ['snare', 'RẮN CUỘN SIẾT'],
+  Strawberry: ['grow', 'DÂU TÂY PHÌNH TO'],
+  Turtle: ['charge', 'RÙA XOAY MAI'],
+  Tiger: ['charge', 'HỔ VỒ TỐC ĐỘ'],
+  Train: ['charge', 'TÀU HỎA LAO ĐƯỜNG RAY'],
+  Umbrella: ['gust', 'Ô BẬT GIÓ NGƯỢC'],
+  Unicorn: ['charge', 'KỲ LÂN HÚC SÁNG'],
+  Urn: ['snare', 'BÌNH LỚN HÚT GIÓ'],
+  Violin: ['snare', 'VĨ CẦM GIỮ NHỊP'],
+  Volcano: ['gust', 'NÚI LỬA PHUN TRÀO'],
+  Vase: ['snare', 'BÌNH HOA QUẤN DÂY'],
+  Whale: ['grow', 'CÁ VOI TẠO SÓNG LỚN'],
+  Watermelon: ['charge', 'DƯA HẤU LĂN ẦM ẦM'],
+  Wolf: ['charge', 'SÓI SĂN THEO DẤU'],
+  Xylophone: ['snare', 'ĐÀN GỖ GIỮ NHỊP'],
+  'X-ray': ['freeze', 'TIA X-QUANG ĐÓNG KHUNG'],
+  'X-ray fish': ['snare', 'CÁ THỦY TINH PHÓNG SÓNG'],
+  'Yo-yo': ['charge', 'YO-YO BẬT NGƯỢC'],
+  Yak: ['charge', 'BÒ TÂY TẠNG HÚC TUYẾT'],
+  Yarn: ['snare', 'SỢI LEN QUẤN CHÂN'],
+  Zebra: ['charge', 'NGỰA VẰN PHI NHANH'],
+  Zipper: ['snare', 'KHÓA KÉO KHÓA CHÂN'],
+  Zucchini: ['grow', 'BÍ NGÒI DÀI KHỔNG LỒ'],
+};
+function skillProfile(word: string) {
+  const profile = skillProfiles[word];
+  if (!profile) throw new Error('Missing enemy skill: ' + word);
+  return profile;
 }
-export function enemySkillLabel(skill: EnemySkill) {
-  return {
-    grow: 'HÓA KHỔNG LỒ',
-    freeze: 'ĐÓNG BĂNG',
-    charge: 'LAO TỚI',
-    leap: 'NHẢY VỌT',
-    gust: 'GIÓ ĐẨY',
-    snare: 'TRÓI CHẬM',
-  }[skill];
+export function enemySkill(word: string): EnemySkill {
+  return skillProfile(word)[0];
+}
+export function enemySkillLabel(word: string) {
+  return skillProfile(word)[1];
 }
 export function enemySkillHint(word: string, skill: EnemySkill) {
+  const label = enemySkillLabel(word).toLocaleLowerCase('vi');
   return {
-    grow: `${word} sắp hóa khổng lồ—giữ khoảng cách rồi nhảy lên!`,
-    freeze: `${word} làm đường đóng băng—đổi hướng sẽ bị trượt!`,
-    charge: `${word} sắp lao nhanh—hãy nhảy qua đầu!`,
-    leap: `${word} có thể nhảy rất cao—đừng đứng yên!`,
-    gust: `${word} tạo gió đẩy—né chữ đang bay tới!`,
-    snare: `${word} làm cậu chậm lại—né chữ màu tím nhé!`,
+    grow: `${word} dùng ${label}—giữ khoảng cách rồi nhảy lên!`,
+    freeze: `${word} dùng ${label}—đổi hướng sẽ bị trượt!`,
+    charge: `${word} dùng ${label}—hãy nhảy qua đầu!`,
+    leap: `${word} dùng ${label}—đừng đứng yên!`,
+    gust: `${word} dùng ${label}—né chữ màu xanh nhé!`,
+    snare: `${word} dùng ${label}—né chữ màu tím nhé!`,
   }[skill];
 }
 export function airborne(motion: EnemyMotion) {
