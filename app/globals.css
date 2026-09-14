@@ -1674,6 +1674,32 @@ footer span {
   text-shadow: 0 3px #b08436;
   margin-top: 15px;
 }
+.new-best-badge {
+  display: inline-flex;
+  margin-top: 5px;
+  padding: 4px 9px;
+  color: #fff9cf;
+  background: #628442;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 0 #3d5d2e;
+  animation: best-pop 0.55s ease-out both;
+}
+@keyframes best-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(5px);
+  }
+  70% {
+    transform: scale(1.08) translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
 .rating-reasons {
   width: min(100%, 330px);
   display: grid;
@@ -1694,6 +1720,22 @@ footer span {
   color: #5f641e;
   background: #f3e8a6;
   font-weight: 800;
+}
+.won-screen .star-coaching {
+  width: min(100%, 330px);
+  margin: -5px auto 12px;
+  padding: 8px 10px;
+  align-items: flex-start;
+  color: #4b633f;
+  background: #e7f1cf;
+  border: 1px solid #bfd095;
+  border-radius: 10px;
+  line-height: 1.35;
+  text-align: left;
+}
+.star-coaching svg {
+  flex: 0 0 auto;
+  color: #a67c20;
 }
 .learned-word {
   padding: 10px 0 13px;

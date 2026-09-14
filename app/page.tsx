@@ -150,6 +150,7 @@ export default function Home() {
     [damageTaken, setDamageTaken] = useState(0),
     [starGoalsOpen, setStarGoalsOpen] = useState(false),
     [resultStars, setResultStars] = useState(0),
+    [resultNewBest, setResultNewBest] = useState(false),
     [resultCollectedAll, setResultCollectedAll] = useState(false),
     [resultPerfectHealth, setResultPerfectHealth] = useState(false),
     [muted, setMuted] = useState(false),
@@ -407,6 +408,7 @@ export default function Home() {
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
+    setResultNewBest(false);
     setResultCollectedAll(false);
     setResultPerfectHealth(false);
     setScore(0);
@@ -782,6 +784,7 @@ export default function Home() {
     setDamageTaken(0);
     setStarGoalsOpen(false);
     setResultStars(0);
+    setResultNewBest(false);
     setResultCollectedAll(false);
     setResultPerfectHealth(false);
     setHp(3);
@@ -819,15 +822,17 @@ export default function Home() {
       perfectHealth = game.current.damageTaken === 0,
       next = [...new Set([...completed, level])],
       earnedStars = 1 + (collectedAll ? 1 : 0) + (perfectHealth ? 1 : 0),
+      previousBest = ratings[String(level)] ?? 0,
       nextRatings = {
         ...ratings,
-        [level]: Math.max(ratings[String(level)] ?? 0, earnedStars),
+        [level]: Math.max(previousBest, earnedStars),
       };
     completedRef.current = next;
     ratingsRef.current = nextRatings;
     setCompleted(next);
     setRatings(nextRatings);
     setResultStars(earnedStars);
+    setResultNewBest(earnedStars > previousBest);
     setResultCollectedAll(collectedAll);
     setResultPerfectHealth(perfectHealth);
     if (!guestMode)
@@ -1698,6 +1703,9 @@ export default function Home() {
                     </span>
                   ))}
                 </div>
+                {resultNewBest && (
+                  <span className="new-best-badge">✦ KỶ LỤC MỚI</span>
+                )}
                 <h2>Giỏi lắm, bạn ơi!</h2>
                 <div className="learned-word">
                   <span>
@@ -1755,6 +1763,16 @@ export default function Home() {
                     ★ Không mất tim
                   </span>
                 </div>
+                {resultStars < 3 && (
+                  <p className="star-coaching">
+                    <Sparkles size={15} />
+                    {!resultCollectedAll && !resultPerfectHealth
+                      ? 'Chơi lại: tìm đủ 3 vật phẩm và né đòn để đạt 3 sao.'
+                      : !resultCollectedAll
+                        ? 'Còn thiếu vật phẩm. Hãy khám phá cả những bệ phụ nhé!'
+                        : 'Bạn đã nhặt đủ. Lần tới né đòn để giành sao cuối nhé!'}
+                  </p>
+                )}
                 <button
                   className="primary-button"
                   onClick={() => chooseLevel((level + 1) % 26)}
@@ -1766,7 +1784,9 @@ export default function Home() {
                 </button>
                 <button className="text-button" onClick={replay}>
                   <RotateCcw size={16} />
-                  Chơi lại, nhặt đủ sao
+                  {resultStars < 3
+                    ? 'Chơi lại để lấy đủ 3 sao'
+                    : 'Chơi lại màn này'}
                 </button>
                 {completed.length === 26 && (
                   <button className="text-button" onClick={replayEnding}>
