@@ -1382,7 +1382,7 @@ export function updateGame(
         enemyPace(e.noun[0]) *
         (slowed ? 0.42 : 1) *
         (e.skill === 'charge' && e.skillActive > 0
-          ? 1.65 + e.skillPower * 0.72
+          ? 1.48 + e.skillPower * 0.62 + e.skillVariant * 0.24
           : 1);
     if (e.behavior === 'drop') {
       e.vx = 0;
@@ -1445,7 +1445,7 @@ export function updateGame(
           e.behavior === 'hop'
             ? e.alert
               ? e.skill === 'leap' && e.skillActive > 0
-                ? 118 + e.skillPower * 42
+                ? 106 + e.skillPower * 36 + e.skillVariant * 22
                 : 100
               : 56
             : e.behavior === 'walk'
@@ -1504,7 +1504,7 @@ export function updateGame(
       }
     } else e.fireTimer = Math.max(0.8, e.fireTimer);
     const giant = e.skill === 'grow' && e.skillActive > 0,
-      giantExtra = giant ? 16 + e.skillPower * 14 : 0,
+      giantExtra = giant ? 14 + e.skillPower * 13 + e.skillVariant * 5 : 0,
       enemyBody: Rect = giant
         ? {
             x: e.x - giantExtra / 2,
@@ -1526,7 +1526,9 @@ export function updateGame(
         wendySay(g, 'Bẹp! Cú nhảy đẹp đó!');
       } else {
         if (e.skill === 'charge' && e.skillActive > 0)
-          p.vx += Math.sign(e.vx || distance) * (150 + e.skillPower * 100);
+          p.vx +=
+            Math.sign(e.vx || distance) *
+            (135 + e.skillPower * 90 + e.skillVariant * 34);
         hurt(g);
       }
     }
@@ -1699,10 +1701,11 @@ export function updateGame(
     if (overlaps(p, s)) {
       s.life = 0;
       if (s.effect === 'freeze')
-        g.slipperyUntil = g.time + 2.5 + (s.power ?? 1);
-      if (s.effect === 'snare') g.slowedUntil = g.time + 1.6 + (s.power ?? 1);
+        g.slipperyUntil = g.time + 2.2 + (s.power ?? 1) * 1.05;
+      if (s.effect === 'snare')
+        g.slowedUntil = g.time + 1.35 + (s.power ?? 1) * 1.1;
       if (s.effect === 'gust')
-        p.vx += Math.sign(s.vx) * (190 + (s.power ?? 1) * 85);
+        p.vx += Math.sign(s.vx) * (170 + (s.power ?? 1) * 105);
       hurt(g);
     }
   }
@@ -2215,7 +2218,8 @@ export function drawGame(
         : Math.max(0, contactDepth * (1 - Math.min(1, (e.baseY - e.y) / 28)));
     ctx.translate(x + e.w / 2, e.y + e.h + enemyFootOffset);
     if (e.skill === 'grow' && e.skillActive > 0) {
-      const grow = 1 + Math.min(0.62, (e.skillActive / 0.45) * 0.62);
+      const grow =
+        1 + Math.min(0.7, 0.34 + e.skillPower * 0.16 + e.skillVariant * 0.07);
       ctx.scale(grow, grow);
     }
     if (e.dead) {
@@ -2261,9 +2265,19 @@ export function drawGame(
             : 0.5 + Math.sin(t * 12) * 0.18;
         ctx.strokeStyle = skillColor;
         ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.ellipse(x + e.w / 2, e.y + e.h + 7, 27, 7, 0, 0, Math.PI * 2);
-        ctx.stroke();
+        for (let ring = 0; ring <= e.skillVariant; ring++) {
+          ctx.beginPath();
+          ctx.ellipse(
+            x + e.w / 2,
+            e.y + e.h + 7,
+            25 + ring * 7 + Math.sin(t * 8 + ring) * 2,
+            6 + ring * 2,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.stroke();
+        }
         ctx.globalAlpha = 1;
         text(
           `${e.skillWindup > 0 ? '!' : ''}${enemySkillLabel(e.noun[0])}${e.skillWindup > 0 ? '!' : ''}`,

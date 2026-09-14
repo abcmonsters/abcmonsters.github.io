@@ -41,6 +41,7 @@ import {
   enemySkillCounter,
   enemySkillEffect,
   enemySkillLabel,
+  enemySkillSignature,
 } from './enemy-traits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -2169,7 +2170,8 @@ export default function Home() {
                             {enemySkillLabel(noun[0])}
                           </span>
                           <small className="enemy-skill-effect">
-                            {enemySkillEffect(skill)}
+                            {enemySkillEffect(skill)} ·{' '}
+                            {enemySkillSignature(noun[0])}
                           </small>
                           <span
                             className={`enemy-counter counter-${counter.toLowerCase()}`}

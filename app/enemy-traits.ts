@@ -253,6 +253,19 @@ export function enemySkillEffect(skill: EnemySkill) {
     snare: 'Bắn dây trói làm giảm tốc độ',
   }[skill];
 }
+export function enemySkillSignature(word: string) {
+  const skill = enemySkill(word),
+    { variant } = enemySkillPhysics(word),
+    signatures: Record<EnemySkill, readonly [string, string, string]> = {
+      grow: ['Phình nhanh', 'Phình theo nhịp', 'Phình cực đại'],
+      freeze: ['Băng tập trung', 'Băng lan rộng', 'Băng kéo dài'],
+      charge: ['Lao thẳng', 'Lao tăng tốc', 'Lao cực mạnh'],
+      leap: ['Bật gần', 'Bật cao', 'Bật vượt đầu'],
+      gust: ['Gió thẳng', 'Gió tách đôi', 'Gió ba hướng'],
+      snare: ['Trói thẳng', 'Trói hai hướng', 'Trói ba hướng'],
+    };
+  return signatures[skill][variant];
+}
 export function enemySkillHint(word: string, skill: EnemySkill) {
   const label = enemySkillLabel(word).toLocaleLowerCase('vi'),
     counter = enemyCounterName(enemySkillCounter(word, skill));
