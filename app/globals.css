@@ -1194,6 +1194,10 @@ footer span {
   letter-spacing: 0;
   font-size: 14px;
 }
+.game-hud .hud-score.active {
+  color: #29452c;
+  background: #f1d367;
+}
 .game-hud > button {
   pointer-events: auto;
   color: #385237;
@@ -1201,6 +1205,47 @@ footer span {
   border: 2px solid #ffffff7a;
   padding: 9px;
   border-radius: 9px;
+}
+.star-goals {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: min(238px, calc(100vw - 34px));
+  display: grid;
+  gap: 7px;
+  padding: 12px 14px;
+  color: #40513b;
+  background: #f8ffe8ed;
+  border: 2px solid #ffffffb8;
+  border-radius: 13px;
+  box-shadow: 0 8px 22px #17332238;
+  pointer-events: auto;
+  backdrop-filter: blur(7px);
+}
+.star-goals > b {
+  color: #30492f;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+}
+.star-goals > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.star-goals > span > i {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #8a9a7f;
+  border-radius: 50%;
+}
+.star-goals > span.done {
+  color: #49763c;
+}
+.star-goals > span.lost {
+  color: #c06455;
+  text-decoration: line-through;
 }
 .game-utility-overlay {
   position: absolute;

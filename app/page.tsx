@@ -147,6 +147,8 @@ export default function Home() {
     [mode, setMode] = useState<Mode>('ready'),
     [hp, setHp] = useState(3),
     [stars, setStars] = useState(0),
+    [damageTaken, setDamageTaken] = useState(0),
+    [starGoalsOpen, setStarGoalsOpen] = useState(false),
     [resultStars, setResultStars] = useState(0),
     [resultCollectedAll, setResultCollectedAll] = useState(false),
     [resultPerfectHealth, setResultPerfectHealth] = useState(false),
@@ -402,6 +404,8 @@ export default function Home() {
     setMode('ready');
     setHp(3);
     setStars(0);
+    setDamageTaken(0);
+    setStarGoalsOpen(false);
     setResultStars(0);
     setResultCollectedAll(false);
     setResultPerfectHealth(false);
@@ -680,6 +684,8 @@ export default function Home() {
             tone(880);
           } else if (e.type === 'hurt') {
             haptic(55);
+            if (g.damageTaken === 1)
+              flash('Mất mục tiêu “Không bị thương” · Vẫn còn thể đạt 2 sao!');
             tone(140);
           } else if (e.type === 'stomp') {
             haptic(28);
@@ -691,6 +697,7 @@ export default function Home() {
         }
         setHp(g.hp);
         setStars(g.stars);
+        setDamageTaken(g.damageTaken);
         setEarthReady(earthAbilityReady(g));
         setScore(g.score);
         setLearned((prev) =>
@@ -772,6 +779,8 @@ export default function Home() {
   function replay() {
     game.current = createGame(level, hero);
     setStars(0);
+    setDamageTaken(0);
+    setStarGoalsOpen(false);
     setResultStars(0);
     setResultCollectedAll(false);
     setResultPerfectHealth(false);
@@ -1236,7 +1245,16 @@ export default function Home() {
                     {'♥'.repeat(3 - Math.max(0, hp))}
                   </span>
                 </span>
-                <span className="hud-score">✦ {stars} / 3</span>
+                <button
+                  type="button"
+                  className={`hud-score ${starGoalsOpen ? 'active' : ''}`}
+                  onClick={() => setStarGoalsOpen((open) => !open)}
+                  aria-expanded={starGoalsOpen}
+                  aria-controls="star-goals"
+                  aria-label={`${stars} trên 3 vật phẩm đã thu thập. Xem mục tiêu sao`}
+                >
+                  ✦ {stars} / 3
+                </button>
                 {progressUser && (
                   <button
                     type="button"
@@ -1263,6 +1281,26 @@ export default function Home() {
                   >
                     <Pause size={17} />
                   </button>
+                )}
+                {starGoalsOpen && (
+                  <output id="star-goals" className="star-goals">
+                    <b>MỤC TIÊU 3 SAO</b>
+                    <span className="done">
+                      <Check size={13} /> Hoàn thành màn
+                    </span>
+                    <span className={stars === 3 ? 'done' : ''}>
+                      {stars === 3 ? <Check size={13} /> : <i />}
+                      Thu thập đủ 3 vật phẩm
+                    </span>
+                    <span className={damageTaken === 0 ? 'done' : 'lost'}>
+                      {damageTaken === 0 ? (
+                        <Check size={13} />
+                      ) : (
+                        <X size={13} />
+                      )}
+                      Không bị mất tim
+                    </span>
+                  </output>
                 )}
               </div>
             )}
