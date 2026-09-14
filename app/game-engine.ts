@@ -114,6 +114,7 @@ export type Enemy = Rect & {
   skill: EnemySkill;
   skillTimer: number;
   skillActive: number;
+  skillWindup: number;
   skillSeen: boolean;
   skillPower: number;
   skillDuration: number;
@@ -521,6 +522,7 @@ export function createGame(level = 0, hero: CharacterId = 'mon'): Game {
       skill: enemySkill(noun[0]),
       skillTimer: 4.8 + (i % 3) * 1.1,
       skillActive: 0,
+      skillWindup: 0,
       skillSeen: false,
       skillPower: skillPhysics.power,
       skillDuration: skillPhysics.duration,
@@ -1306,42 +1308,52 @@ export function updateGame(
     const distance = p.x + p.w / 2 - (e.x + e.w / 2);
     e.alert = engagedEnemies.has(e);
     if (e.alert) {
-      e.skillTimer -= dt;
-      if (e.skillTimer <= 0) {
-        e.skillActive =
-          e.skill === 'grow' ? e.skillDuration * 2.1 : e.skillDuration;
+      if (e.skillWindup > 0) {
+        e.skillWindup = Math.max(0, e.skillWindup - dt);
+        if (e.skillWindup === 0) {
+          e.skillActive =
+            e.skill === 'grow' ? e.skillDuration * 2.1 : e.skillDuration;
+          if (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
+            e.fireTimer = Math.min(e.fireTimer, 0.55);
+          if (e.skill === 'freeze') {
+            const icePlatform = g.platforms
+                .filter(
+                  (platform) =>
+                    p.x + p.w / 2 >= platform.x - 30 &&
+                    p.x + p.w / 2 <= platform.x + platform.w + 30 &&
+                    platform.y >= p.y + p.h - 20,
+                )
+                .sort((a, b) => a.y - b.y)[0],
+              patchWidth = 120 + e.skillVariant * 34;
+            if (icePlatform)
+              g.icePatches.push({
+                x: Math.max(
+                  icePlatform.x,
+                  Math.min(
+                    icePlatform.x + icePlatform.w - patchWidth,
+                    p.x - patchWidth / 2,
+                  ),
+                ),
+                y: icePlatform.y - 7,
+                w: Math.min(patchWidth, icePlatform.w),
+                h: 9,
+                life: 3.2 + e.skillPower,
+                maxLife: 3.2 + e.skillPower,
+                noun: e.noun,
+              });
+          }
+        }
+      } else {
+        e.skillTimer -= dt;
+      }
+      if (e.skillTimer <= 0 && e.skillWindup === 0 && e.skillActive === 0) {
+        e.skillWindup = Math.max(
+          0.65,
+          1.15 - g.difficulty * 0.32 + e.skillVariant * 0.08,
+        );
         e.skillTimer =
           Math.max(4.1, e.skillCooldown - g.difficulty * 0.75) +
           (e.phase % 0.7);
-        if (e.skill === 'freeze' || e.skill === 'gust' || e.skill === 'snare')
-          e.fireTimer = Math.min(e.fireTimer, 0.55);
-        if (e.skill === 'freeze') {
-          const icePlatform = g.platforms
-              .filter(
-                (platform) =>
-                  p.x + p.w / 2 >= platform.x - 30 &&
-                  p.x + p.w / 2 <= platform.x + platform.w + 30 &&
-                  platform.y >= p.y + p.h - 20,
-              )
-              .sort((a, b) => a.y - b.y)[0],
-            patchWidth = 120 + e.skillVariant * 34;
-          if (icePlatform)
-            g.icePatches.push({
-              x: Math.max(
-                icePlatform.x,
-                Math.min(
-                  icePlatform.x + icePlatform.w - patchWidth,
-                  p.x - patchWidth / 2,
-                ),
-              ),
-              y: icePlatform.y - 7,
-              w: Math.min(patchWidth, icePlatform.w),
-              h: 9,
-              life: 3.2 + e.skillPower,
-              maxLife: 3.2 + e.skillPower,
-              noun: e.noun,
-            });
-        }
         g.events.push({
           type: 'enemySkill',
           noun: e.noun,
@@ -1447,6 +1459,7 @@ export function updateGame(
     // Fire only within the visible encounter, with time to read and dodge the word.
     if (
       e.alert &&
+      e.skillWindup === 0 &&
       (e.behavior !== 'drop' || e.dropState === 'rest') &&
       Math.abs(distance) < 360 &&
       Math.abs(p.y - e.y) < 250
@@ -1668,9 +1681,12 @@ export function updateGame(
           wendySay(g, `${e.noun[0]} hết đường chạy nhé!`);
         } else {
           const counterHero = enemySkillCounter(e.noun[0], e.skill),
-            countered = e.skillActive > 0 && rock.hero === counterHero;
+            countered =
+              (e.skillActive > 0 || e.skillWindup > 0) &&
+              rock.hero === counterHero;
           if (countered) {
             e.skillActive = 0;
+            e.skillWindup = 0;
             e.skillTimer = Math.max(e.skillTimer, 3.2);
             for (const shot of g.shots)
               if (shot.noun[0] === e.noun[0]) shot.life = 0;
@@ -2164,7 +2180,7 @@ export function drawGame(
 
     ctx.restore();
     if (!e.dead) {
-      if (e.skillActive > 0) {
+      if (e.skillActive > 0 || e.skillWindup > 0) {
         const skillColor =
           e.skill === 'freeze'
             ? '#7ee9ff'
@@ -2175,7 +2191,10 @@ export function drawGame(
                 : e.skill === 'grow'
                   ? '#ffd16f'
                   : '#ff9d75';
-        ctx.globalAlpha = 0.5 + Math.sin(t * 12) * 0.18;
+        ctx.globalAlpha =
+          e.skillWindup > 0
+            ? 0.42 + Math.sin(t * 18) * 0.25
+            : 0.5 + Math.sin(t * 12) * 0.18;
         ctx.strokeStyle = skillColor;
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -2183,7 +2202,7 @@ export function drawGame(
         ctx.stroke();
         ctx.globalAlpha = 1;
         text(
-          enemySkillLabel(e.noun[0]),
+          `${e.skillWindup > 0 ? '!' : ''}${enemySkillLabel(e.noun[0])}${e.skillWindup > 0 ? '!' : ''}`,
           x + e.w / 2,
           e.y - 35,
           7,
@@ -2198,6 +2217,11 @@ export function drawGame(
           '#fff8c8',
           'Arial',
         );
+        if (e.skillWindup > 0) {
+          const windupRatio = Math.max(0, Math.min(1, e.skillWindup / 1.25));
+          rect(x + 4, e.y - 20, e.w - 8, 3, '#243a31aa');
+          rect(x + 4, e.y - 20, (e.w - 8) * windupRatio, 3, skillColor);
+        }
       }
       if (e.slowUntil > g.time) {
         ctx.strokeStyle = '#64dff4';
