@@ -182,6 +182,8 @@ export type Game = {
     vx: number;
     vy: number;
     life: number;
+    originX: number;
+    maxRange: number;
     spin: number;
     gravity: number;
     hero: CharacterId;
@@ -892,18 +894,21 @@ export function activateEarthSkill(g: Game) {
       : backward
         ? -direction * 430
         : direction * (arcing ? 285 : 430),
-    velocityY = vertical ? -590 : arcing ? -430 : 0;
-  g.earthShots.push({
-    x: vertical
+    velocityY = vertical ? -590 : arcing ? -430 : 0,
+    projectileX = vertical
       ? g.player.x + g.player.w / 2 - 9
       : g.player.x +
-        (velocityX > 0 ? g.player.w - 2 : -(largeProjectile ? 18 : 12)),
+        (velocityX > 0 ? g.player.w - 2 : -(largeProjectile ? 18 : 12));
+  g.earthShots.push({
+    x: projectileX,
     y: g.player.y + (vertical || arcing ? 7 : 24),
     w: largeProjectile ? 18 : 12,
     h: largeProjectile ? 18 : 12,
     vx: velocityX,
     vy: velocityY,
     life: 2.2,
+    originX: projectileX,
+    maxRange: g.hero === 'mon' ? 235 : 700,
     spin: backward && velocityX < 0 ? Math.PI : 0,
     gravity: vertical || arcing ? 980 : 0,
     hero: g.hero,
@@ -1741,8 +1746,18 @@ export function updateGame(
     if (rock.hero !== 'sol')
       rock.spin += (rock.hero === 'mori' ? 1 : Math.sign(rock.vx)) * dt * 9;
     rock.life -= dt;
+    if (Math.abs(rock.x - rock.originX) >= rock.maxRange) {
+      rock.life = 0;
+      burst(
+        g,
+        rock.x + rock.w / 2,
+        rock.y + rock.h / 2,
+        rock.hero === 'mon' ? '#c99a50' : '#d8c27a',
+        6,
+      );
+    }
     for (const e of g.enemies) {
-      if (!e.dead && overlaps(rock, e)) {
+      if (rock.life > 0 && !e.dead && overlaps(rock, e)) {
         e.rockHp = Math.max(0, e.rockHp - 2);
         if (rock.hero === 'rio') e.slowUntil = g.time + 2.6;
         if (rock.hero === 'sol' && e.rockHp > 0) {
